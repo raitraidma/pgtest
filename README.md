@@ -4,6 +4,12 @@ Testing in PostgreSQL.
 ## Installation
 Create database and execute pgtest.sql. This will create pgtest schema with functions that are used for testing.
 
+```bash
+curl --silent https://raw.githubusercontent.com/raitraidma/pgtest/master/pgtest.sql |\
+sudo -u postgres psql mydatabasefortesting
+```
+
+
 ## Usage
 Create schema for your tests:
 ```sql
