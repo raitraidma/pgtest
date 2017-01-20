@@ -43,9 +43,11 @@ $$ LANGUAGE plpgsql
 Run tests:
 ```sql
 SELECT pgtest.run_tests('test');
+-- OR
+SELECT pgtest.run_tests(ARRAY['test_schema1','test_schema2']); -- Run tests from multiple schemas.
 ```
 
-Result is number of messages that failed. Raised messages show more specific info about tests - what tests running, how many failed, what was the cause and how long it took.
+Result is number of messages that failed. Raised messages show more specific info about tests - what tests ran, how many failed, what was the cause and how long it took.
 If you do not want to see pg_exception_context in messages then change `client_min_messages` to `NOTICE`:
 ```sql
 SET client_min_messages TO NOTICE;

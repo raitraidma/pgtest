@@ -61,11 +61,12 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.run_tests(s_schema_name VARCHAR)
+CREATE OR REPLACE FUNCTION pgtest.run_tests(s_schema_names VARCHAR[])
   RETURNS int AS
 $$
 DECLARE
   s_function_name VARCHAR;
+  s_schema_name VARCHAR;
   t_start_time TIMESTAMP;
   t_end_time TIMESTAMP;
   s_test_result VARCHAR;
@@ -74,22 +75,35 @@ DECLARE
 BEGIN
   t_start_time := clock_timestamp();
 
-  RAISE NOTICE 'Running tests in schema: %', s_schema_name;
-  FOR s_function_name IN (SELECT function_name FROM pgtest.f_get_functions_in_schema(s_schema_name))
-  LOOP
-    i_test_count := i_test_count + 1;
-    RAISE NOTICE 'Running test: %.%', s_schema_name, s_function_name;
-    s_test_result := pgtest.f_run_test(s_schema_name, s_function_name);
-    RAISE NOTICE '%', s_test_result;
-    IF (s_test_result <> 'OK') THEN
-      i_error_count := i_error_count + 1;
-    END IF;
+  FOREACH s_schema_name IN ARRAY s_schema_names LOOP
+    RAISE NOTICE 'Running tests in schema: %', s_schema_name;
+    FOR s_function_name IN (SELECT function_name FROM pgtest.f_get_functions_in_schema(s_schema_name))
+    LOOP
+      i_test_count := i_test_count + 1;
+      RAISE NOTICE 'Running test: %.%', s_schema_name, s_function_name;
+      s_test_result := pgtest.f_run_test(s_schema_name, s_function_name);
+      RAISE NOTICE '%', s_test_result;
+      IF (s_test_result <> 'OK') THEN
+        i_error_count := i_error_count + 1;
+      END IF;
+    END LOOP;
   END LOOP;
 
   t_end_time := clock_timestamp();
   RAISE NOTICE 'Executed % tests of which % failed in %', i_test_count, i_error_count, (t_end_time - t_start_time);
 
   RETURN i_error_count;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.run_tests(s_schema_name VARCHAR)
+  RETURNS int AS
+$$
+BEGIN
+  RETURN pgtest.run_tests(ARRAY[s_schema_name]);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
