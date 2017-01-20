@@ -158,3 +158,10 @@ END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
+
+
+DO language plpgsql $$
+BEGIN
+  RAISE NOTICE 'PgTest installed!';
+END
+$$;
