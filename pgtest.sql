@@ -3,6 +3,16 @@ CREATE SCHEMA IF NOT EXISTS pgtest;
 ---------------
 -- EXECUTION --
 ---------------
+DROP AGGREGATE IF EXISTS pgtest.array_agg_mult (ANYARRAY);
+
+
+CREATE AGGREGATE pgtest.array_agg_mult (ANYARRAY)  (
+  SFUNC    = array_cat
+, STYPE    = anyarray
+, INITCOND = '{}'
+);
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_get_functions_in_schema(s_schema_name VARCHAR)
   RETURNS TABLE (
     function_name VARCHAR
@@ -35,6 +45,15 @@ BEGIN
   RETURN s_error_message;
 END;
 $$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.f_json_object_values_to_array(j_json_object JSON)
+  RETURNS TEXT[] AS
+$$
+  SELECT array_agg(j.value) FROM (SELECT (json_each_text(j_json_object)).value) j;
+$$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
@@ -117,6 +136,7 @@ DO $BODY$
 DECLARE
   s_data_type_name VARCHAR;
 BEGIN
+  -- Not using ANYNONARRAY, because then casting is needed.
   FOR s_data_type_name IN (
     SELECT unnest(ARRAY['BIGINT', 'BIT', 'BOOLEAN', 'CHAR', 'VARCHAR', 'DOUBLE PRECISION', 'INT', 'REAL', 'SMALLINT', 'TEXT', 'TIME', 'TIMETZ', 'TIMESTAMP', 'TIMESTAMPTZ', 'XML'])
   ) LOOP
@@ -148,12 +168,12 @@ END
 $BODY$;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_true(b_value BOOLEAN)
+CREATE OR REPLACE FUNCTION pgtest.assert_equals(a_expected_array ANYARRAY, a_actual_array ANYARRAY, s_message TEXT DEFAULT 'Expected: %1$s. But was: %2$s.')
   RETURNS void AS
 $$
 BEGIN
-  IF (NOT(b_value)) THEN
-    RAISE EXCEPTION 'Expected: TRUE. But was: FALSE';
+  IF (NOT(a_expected_array = a_actual_array)) THEN
+    RAISE EXCEPTION '%', format(s_message, a_expected_array, a_actual_array);
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -161,13 +181,57 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_false(b_value BOOLEAN)
+CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(a_not_expected_array ANYARRAY, a_actual_array ANYARRAY, s_message TEXT DEFAULT 'Not expected: %1$s. But was: %2$s.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (a_not_expected_array = a_actual_array) THEN
+    RAISE EXCEPTION '%', format(s_message, a_not_expected_array, a_actual_array);
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_true(b_value BOOLEAN, s_message TEXT DEFAULT 'Expected: TRUE. But was: FALSE')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT(b_value)) THEN
+    RAISE EXCEPTION '%', s_message;
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_false(b_value BOOLEAN, s_message TEXT DEFAULT 'Expected: FALSE. But was: TRUE')
   RETURNS void AS
 $$
 BEGIN
   IF (b_value) THEN
-    RAISE EXCEPTION 'Expected: FALSE. But was: TRUE';
+    RAISE EXCEPTION '%', s_message;
   END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_query_equals(s_expected_recordset TEXT[][], s_sql_query TEXT)
+  RETURNS void AS
+$$
+DECLARE
+  s_sql TEXT;
+  s_actual_recordset TEXT[][];
+BEGIN
+  EXECUTE format('SELECT pgtest.array_agg_mult(ARRAY[t.values]) FROM (
+                    SELECT pgtest.f_json_object_values_to_array(row_to_json(query)) AS values
+                    FROM (%s) query
+                  ) t;', s_sql_query) INTO s_actual_recordset;
+  PERFORM pgtest.assert_equals(s_expected_recordset, s_actual_recordset);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

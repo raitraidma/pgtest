@@ -1,5 +1,5 @@
 # PgTest
-Testing in PostgreSQL.
+Testing in PostgreSQL. Tested with PostgreSQL 9.4.
 
 ## Installation
 Create database and execute pgtest.sql. This will create pgtest schema with functions that are used for testing.
