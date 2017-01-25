@@ -16,9 +16,9 @@ Create schema for your tests:
 CREATE SCHEMA IF NOT EXISTS test;
 ```
 
-Create test functions. Test function MUST return void:
+Create test functions. Test function MUST return `void` and start with `test_`. Tests are ordered by test name.
 ```sql
-CREATE OR REPLACE FUNCTION test.a_equals_a_ok()
+CREATE OR REPLACE FUNCTION test.test_a_equals_a_ok()
   RETURNS void AS
 $$
 BEGIN
@@ -29,7 +29,7 @@ $$ LANGUAGE plpgsql
   SET search_path=test, pg_temp;
 ```
 ```sql
-CREATE OR REPLACE FUNCTION test.a_equals_b_fails()
+CREATE OR REPLACE FUNCTION test.test_a_equals_b_fails()
   RETURNS void AS
 $$
 BEGIN
@@ -58,5 +58,7 @@ SET client_min_messages TO NOTICE;
 * `pgtest.assert_not_equals(not_expected_value, real_value);`
 * `pgtest.assert_true(boolean_value);`
 * `pgtest.assert_false(boolean_value);`
+* `pgtest.assert_query_equals(expected_recordset, sql_query)`
 
-`expected_value` and `real_value` must be same type (BIGINT, BIT, BOOLEAN, CHAR, VARCHAR, DOUBLE PRECISION, INT, REAL, SMALLINT, TEXT, TIME, TIMETZ, TIMESTAMP, TIMESTAMPTZ, XML).
+`expected_value` and `real_value` must be same type (BIGINT, BIT, BOOLEAN, CHAR, VARCHAR, DOUBLE PRECISION, INT, REAL, SMALLINT, TEXT, TIME, TIMETZ, TIMESTAMP, TIMESTAMPTZ, XML or array).
+`expected_recordset` is array TEXT[][] (e.g `ARRAY[ARRAY['a', 'b'], ARRAY['c', 'd']]`) and `sql_query` is sql query as text (e.g `'SELECT ''a'', ''b'''`).

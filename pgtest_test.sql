@@ -1,7 +1,35 @@
 DROP SCHEMA IF EXISTS pgtest_test CASCADE;
 CREATE SCHEMA pgtest_test;
 
-CREATE OR REPLACE FUNCTION pgtest_test.text_equals_text_ok()
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function()
+  RETURNS boolean AS
+$$
+  SELECT true;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.f_mock_test_function()
+  RETURNS void AS
+$MOCK$
+BEGIN
+  PERFORM pgtest.mock('CREATE OR REPLACE FUNCTION pgtest_test.f_test_function()
+                        RETURNS boolean AS
+                      $$
+                        SELECT false;
+                      $$ LANGUAGE sql
+                        SECURITY DEFINER
+                        SET search_path=pgtest_test, pg_temp;');
+END
+$MOCK$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+-----------
+-- Tests --
+-----------
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_text_equals_text_ok()
   RETURNS void AS
 $$
 BEGIN
@@ -12,7 +40,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.text_equals_text_fails()
+CREATE OR REPLACE FUNCTION pgtest_test.test_text_equals_text_fails()
   RETURNS void AS
 $$
 DECLARE
@@ -30,7 +58,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.text_not_equals_text_ok()
+CREATE OR REPLACE FUNCTION pgtest_test.test_text_not_equals_text_ok()
   RETURNS void AS
 $$
 BEGIN
@@ -41,7 +69,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.text_not_equals_text_fails()
+CREATE OR REPLACE FUNCTION pgtest_test.test_text_not_equals_text_fails()
   RETURNS void AS
 $$
 DECLARE
@@ -59,7 +87,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.assert_query_equals_ok()
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_query_equals_ok()
   RETURNS void AS
 $$
 BEGIN
@@ -72,6 +100,18 @@ BEGIN
    SELECT ''c'', ''d''
   '
   );
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_ok()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function());
+  PERFORM pgtest_test.f_mock_test_function();
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function());
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

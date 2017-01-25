@@ -13,7 +13,7 @@ CREATE AGGREGATE pgtest.array_agg_mult (ANYARRAY)  (
 );
 
 
-CREATE OR REPLACE FUNCTION pgtest.f_get_functions_in_schema(s_schema_name VARCHAR)
+CREATE OR REPLACE FUNCTION pgtest.f_get_test_functions_in_schema(s_schema_name VARCHAR)
   RETURNS TABLE (
     function_name VARCHAR
   ) AS
@@ -22,7 +22,9 @@ $$
   FROM information_schema.routines
   WHERE routine_schema = s_schema_name
     AND routine_type = 'FUNCTION'
-    AND data_type = 'void';
+    AND data_type = 'void'
+    AND routine_name LIKE 'test_%'
+  ORDER BY routine_name ASC;
 $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
@@ -96,7 +98,7 @@ BEGIN
 
   FOREACH s_schema_name IN ARRAY s_schema_names LOOP
     RAISE NOTICE 'Running tests in schema: %', s_schema_name;
-    FOR s_function_name IN (SELECT function_name FROM pgtest.f_get_functions_in_schema(s_schema_name))
+    FOR s_function_name IN (SELECT function_name FROM pgtest.f_get_test_functions_in_schema(s_schema_name))
     LOOP
       i_test_count := i_test_count + 1;
       RAISE NOTICE 'Running test: %.%', s_schema_name, s_function_name;
@@ -110,8 +112,10 @@ BEGIN
 
   t_end_time := clock_timestamp();
   RAISE NOTICE 'Executed % tests of which % failed in %', i_test_count, i_error_count, (t_end_time - t_start_time);
-
-  RETURN i_error_count;
+  RAISE 'PgTest ended.'; -- To rollback all changes that were made during tests.
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN i_error_count;
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -232,6 +236,17 @@ BEGIN
                     FROM (%s) query
                   ) t;', s_sql_query) INTO s_actual_recordset;
   PERFORM pgtest.assert_equals(s_expected_recordset, s_actual_recordset);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.mock(s_mock_function_description TEXT)
+  RETURNS void AS
+$$
+BEGIN
+  EXECUTE s_mock_function_description;
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
