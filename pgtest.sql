@@ -69,13 +69,15 @@ DECLARE
   s_pg_exception_context TEXT;
 BEGIN
   EXECUTE 'SELECT ' || s_schema_name || '.' || s_function_name || '();';
-  RETURN 'OK';
+  RAISE 'OK' USING ERRCODE = '40004';
 EXCEPTION
+  WHEN SQLSTATE '40004' THEN
+    RETURN 'OK';
   WHEN OTHERS THEN
     GET STACKED DIAGNOSTICS s_returned_sqlstate = RETURNED_SQLSTATE,
                             s_message_text = MESSAGE_TEXT,
                             s_pg_exception_context = PG_EXCEPTION_CONTEXT;
-  RETURN f_create_error_message(s_returned_sqlstate, s_message_text, s_pg_exception_context);
+    RETURN f_create_error_message(s_returned_sqlstate, s_message_text, s_pg_exception_context);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

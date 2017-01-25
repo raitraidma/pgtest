@@ -105,13 +105,23 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_mock_ok()
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_1_ok()
   RETURNS void AS
 $$
 BEGIN
   PERFORM pgtest.assert_true(pgtest_test.f_test_function());
   PERFORM pgtest_test.f_mock_test_function();
   PERFORM pgtest.assert_false(pgtest_test.f_test_function());
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_2_mock_is_rolled_back_after_previous_test_ok()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function());
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
