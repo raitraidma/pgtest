@@ -157,12 +157,12 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_mock_1_mock_changes_function_implementation()
+CREATE OR REPLACE FUNCTION pgtest_test.test_simple_mock_1_mock_changes_function_implementation()
   RETURNS void AS
 $$
 BEGIN
   PERFORM pgtest.assert_true(pgtest_test.f_test_function());
-  PERFORM pgtest.mock('pgtest_test', 'f_test_function', '', 'pgtest_test', 'f_test_function_mock');
+  PERFORM pgtest.simple_mock('pgtest_test', 'f_test_function', '', 'pgtest_test', 'f_test_function_mock');
   PERFORM pgtest.assert_false(pgtest_test.f_test_function());
 END
 $$ LANGUAGE plpgsql
@@ -170,7 +170,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_mock_2_mock_is_rolled_back_after_previous_test()
+CREATE OR REPLACE FUNCTION pgtest_test.test_simple_mock_2_mock_is_rolled_back_after_previous_test()
   RETURNS void AS
 $$
 BEGIN
@@ -180,5 +180,22 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_assert_call_times()
+  RETURNS void AS
+$$
+DECLARE
+  s_mock_id VARCHAR;
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function());
+  s_mock_id := pgtest.mock('pgtest_test', 'f_test_function', ARRAY[]::VARCHAR[], 'pgtest_test', 'f_test_function_mock');
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function());
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function());
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function());
+  PERFORM pgtest.assert_mock_called(s_mock_id, 3);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
 
 SELECT pgtest.run_tests('pgtest_test');

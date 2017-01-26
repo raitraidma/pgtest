@@ -88,6 +88,96 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_get_function_description(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[])
+  RETURNS json AS
+$$
+  SELECT row_to_json(fp) FROM (
+    SELECT
+      f.routine_schema
+    , f.routine_name
+    , f.routine_data_type
+    , f.security_type
+    , array_agg(f.parameter_mode) AS parameter_modes
+    , array_agg(f.parameter_name) AS parameter_names
+    , array_agg(f.parameter_data_type) AS parameter_data_types
+    , array_agg(f.parameter_default) AS parameter_defaults
+    FROM (
+      SELECT
+        r.specific_catalog
+      , r.specific_schema
+      , r.specific_name
+      , r.routine_schema
+      , r.routine_name
+      , r.data_type AS routine_data_type
+      , r.security_type
+      , p.parameter_mode::VARCHAR
+      , p.parameter_name::VARCHAR
+      , p.data_type::VARCHAR AS parameter_data_type
+      , p.parameter_default::VARCHAR
+      FROM information_schema.routines r
+      LEFT JOIN information_schema.parameters p ON (r.specific_catalog = p.specific_catalog AND r.specific_schema = p.specific_schema AND r.specific_name = p.specific_name)
+      WHERE r.routine_schema = s_schema_name
+        AND r.routine_name = s_function_name
+        AND r.routine_type = 'FUNCTION'
+      ORDER BY p.ordinal_position ASC
+    ) f
+    GROUP BY
+      f.specific_catalog
+    , f.specific_schema
+    , f.specific_name
+    , f.routine_schema
+    , f.routine_name
+    , f.routine_data_type
+    , f.security_type
+  ) fp WHERE fp.parameter_data_types = (CASE
+    WHEN array_length(s_function_argument_types, 1) IS NULL THEN ARRAY[NULL]::VARCHAR[]
+    ELSE s_function_argument_types
+  END);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.f_create_mock_function(s_mock_id VARCHAR, j_original_function_description JSON, s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
+  RETURNS void AS
+$$
+DECLARE
+  s_call_method VARCHAR := 'RETURN';
+BEGIN
+  IF ((j_original_function_description->>'routine_data_type') = 'void') THEN
+    s_call_method := 'PERFORM';
+  END IF;
+
+  EXECUTE format('CREATE FUNCTION %1$s.%2$s(%3$s)
+                    RETURNS %4$s AS
+                  $MOCK$
+                  DECLARE
+                    s_mock_id VARCHAR := ''%5$s'';
+                  BEGIN
+                    UPDATE temp_pgtest_mock SET times_called = times_called+1 WHERE mock_id = s_mock_id;
+                    %6$s %7$s.%8$s(%9$s);
+                  END
+                  $MOCK$ LANGUAGE plpgsql
+                    SECURITY %10$s
+                    SET search_path=%1$s, pg_temp;'
+  , j_original_function_description->>'routine_schema'
+  , j_original_function_description->>'routine_name'
+  -- TODO: Add IN/OUT and default values to parameters.
+  , (SELECT string_agg(t.types, ',') FROM (SELECT json_array_elements_text(j_original_function_description->'parameter_data_types') AS types) t)
+  , j_original_function_description->>'routine_data_type'
+  , s_mock_id
+  , s_call_method
+  , s_mock_function_schema_name
+  , s_mock_function_name
+  , (SELECT string_agg(t.names, ',') FROM (SELECT json_array_elements_text(j_original_function_description->'parameter_names') AS names) t)
+  , j_original_function_description->>'security_type'
+  );
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.run_tests(s_schema_names VARCHAR[])
   RETURNS int AS
 $$
@@ -246,20 +336,74 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
+-------------
+-- MOCKING --
+-------------
 
-CREATE OR REPLACE FUNCTION pgtest.mock(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_arguments VARCHAR, s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
+CREATE OR REPLACE FUNCTION pgtest.simple_mock(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_arguments VARCHAR, s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
   RETURNS void AS
 $$
 DECLARE
-  s_random_string VARCHAR := md5(random()::text);
-  i_unique_id BIGINT := nextval('pgtest.unique_id');
+  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
 BEGIN
-  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name || '_' || s_random_string || '_' || i_unique_id || ';';
+  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
 
   EXECUTE 'ALTER FUNCTION ' || s_mock_function_schema_name || '.' || s_mock_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name ||';';
 
   IF (s_mock_function_schema_name <> s_original_function_schema_name) THEN
     EXECUTE 'ALTER FUNCTION ' || s_mock_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') SET SCHEMA ' || s_original_function_schema_name || ';';
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.mock(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[], s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
+  RETURNS varchar AS
+$$
+DECLARE
+  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
+  j_original_function_description JSON;
+BEGIN
+  j_original_function_description := pgtest.f_get_function_description(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
+  IF (j_original_function_description IS NULL) THEN
+    RAISE EXCEPTION 'Could not find function to mock: %.%(%)', s_original_function_schema_name, s_original_function_name, array_to_string(s_function_argument_types, ',');
+  END IF;
+
+  CREATE TEMP TABLE IF NOT EXISTS temp_pgtest_mock(
+    mock_id VARCHAR UNIQUE
+  , times_called INT DEFAULT 0
+  ) ON COMMIT DROP;
+
+  INSERT INTO temp_pgtest_mock(mock_id) VALUES (s_mock_id);
+
+  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
+
+  PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_mock_function_schema_name, s_mock_function_name);
+
+  RETURN s_mock_id;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_mock_called(s_mock_id VARCHAR, i_expected_times_called INT DEFAULT 1, s_message TEXT DEFAULT 'Function expected to be called %1$s time(s). But it was called %2$s time(s).')
+  RETURNS void AS
+$$
+DECLARE
+  i_actual_times_called INT;
+BEGIN
+  SELECT times_called
+  INTO i_actual_times_called
+  FROM temp_pgtest_mock
+  WHERE mock_id = s_mock_id;
+
+  IF (i_actual_times_called IS NULL) THEN
+    RAISE EXCEPTION 'Mock with id "%" not found', s_mock_id;
+  ELSIF (i_expected_times_called <> i_actual_times_called) THEN
+    RAISE EXCEPTION '%', format(s_message, i_expected_times_called, i_actual_times_called);
   END IF;
 END
 $$ LANGUAGE plpgsql
