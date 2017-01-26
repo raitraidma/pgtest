@@ -20,8 +20,29 @@ $$ LANGUAGE sql
 -----------
 -- Tests --
 -----------
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_true_compares_with_true()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(true);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_text_equals_text_ok()
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_false_compares_with_false()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_false(false);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_same_text()
   RETURNS void AS
 $$
 BEGIN
@@ -32,7 +53,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_text_equals_text_fails()
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_different_text()
   RETURNS void AS
 $$
 DECLARE
@@ -43,14 +64,14 @@ BEGIN
   EXCEPTION
     WHEN OTHERS THEN b_pass := TRUE;
   END;
-  PERFORM pgtest.assert_true(b_pass, 'Texts should equal but they are not.');
+  PERFORM pgtest.assert_true(b_pass, 'Texts should not be equal.');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_text_not_equals_text_ok()
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_not_equals_compares_different_text()
   RETURNS void AS
 $$
 BEGIN
@@ -61,7 +82,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_text_not_equals_text_fails()
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_not_equals_compares_same_text()
   RETURNS void AS
 $$
 DECLARE
@@ -72,14 +93,14 @@ BEGIN
   EXCEPTION
     WHEN OTHERS THEN b_pass := TRUE;
   END;
-  PERFORM pgtest.assert_true(b_pass, 'Texts should not equal but they do.');
+  PERFORM pgtest.assert_true(b_pass, 'Texts should be equal.');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_assert_query_equals_ok()
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_query_equals_compares_resultset_against_correct_query()
   RETURNS void AS
 $$
 BEGIN
@@ -97,7 +118,8 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_mock_1_ok()
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_1_mock_changes_function_implementation()
   RETURNS void AS
 $$
 BEGIN
@@ -109,7 +131,8 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_mock_2_mock_is_rolled_back_after_previous_test_ok()
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_2_mock_is_rolled_back_after_previous_test()
   RETURNS void AS
 $$
 BEGIN
@@ -118,5 +141,6 @@ END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
+
 
 SELECT pgtest.run_tests('pgtest_test');

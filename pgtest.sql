@@ -142,7 +142,7 @@ $$ LANGUAGE plpgsql
 -- ASSERTIONS --
 ----------------
 
-DO $BODY$
+DO LANGUAGE plpgsql $BODY$
 DECLARE
   s_data_type_name VARCHAR;
 BEGIN
@@ -268,7 +268,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-DO language plpgsql $$
+DO LANGUAGE plpgsql $$
 BEGIN
   RAISE NOTICE 'PgTest installed!';
 END
