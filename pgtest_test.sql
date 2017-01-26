@@ -100,6 +100,44 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_throws_default_error_message()
+  RETURNS void AS
+$$
+DECLARE
+  s_message_text TEXT;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_equals('some text', 'some other text');
+  EXCEPTION
+    WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS s_message_text = MESSAGE_TEXT;
+  END;
+  PERFORM pgtest.assert_equals('Expected: some text. But was: some other text.', s_message_text);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_throws_custom_error_message()
+  RETURNS void AS
+$$
+DECLARE
+  s_message_text TEXT;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_equals('some text', 'some other text', 'First: %1$s. Second: %2$s.');
+  EXCEPTION
+    WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS s_message_text = MESSAGE_TEXT;
+  END;
+  PERFORM pgtest.assert_equals('First: some text. Second: some other text.', s_message_text);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_assert_query_equals_compares_resultset_against_correct_query()
   RETURNS void AS
 $$

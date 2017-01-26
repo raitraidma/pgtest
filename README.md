@@ -9,7 +9,7 @@ curl --silent https://raw.githubusercontent.com/raitraidma/pgtest/master/pgtest.
 sudo -u postgres psql mydatabasefortesting
 ```
 
-To run PgTest's tests execute `pgtest_test.sql`.
+To run PgTest's tests execute `pgtest_test.sql`. There you can also see how to use PgTest.
 
 ## Usage
 Create schema for your tests:
@@ -55,11 +55,11 @@ SET client_min_messages TO NOTICE;
 ```
 
 ## Assertions
-* `pgtest.assert_equals(expected_value, real_value);`
-* `pgtest.assert_not_equals(not_expected_value, real_value);`
-* `pgtest.assert_true(boolean_value);`
-* `pgtest.assert_false(boolean_value);`
-* `pgtest.assert_query_equals(expected_recordset, sql_query)`
+* `pgtest.assert_equals(expected_value, real_value [, custom_error_message]);`
+* `pgtest.assert_not_equals(not_expected_value, real_value [, custom_error_message]);`
+* `pgtest.assert_true(boolean_value [, custom_error_message]);`
+* `pgtest.assert_false(boolean_value [, custom_error_message]);`
+* `pgtest.assert_query_equals(expected_recordset, sql_query [, custom_error_message])`
 
 `expected_value` and `real_value` must be same type (BIGINT, BIT, BOOLEAN, CHAR, VARCHAR, DOUBLE PRECISION, INT, REAL, SMALLINT, TEXT, TIME, TIMETZ, TIMESTAMP, TIMESTAMPTZ, XML or array).
 

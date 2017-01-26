@@ -150,24 +150,24 @@ BEGIN
   FOR s_data_type_name IN (
     SELECT unnest(ARRAY['BIGINT', 'BIT', 'BOOLEAN', 'CHAR', 'VARCHAR', 'DOUBLE PRECISION', 'INT', 'REAL', 'SMALLINT', 'TEXT', 'TIME', 'TIMETZ', 'TIMESTAMP', 'TIMESTAMPTZ', 'XML'])
   ) LOOP
-    EXECUTE format('CREATE OR REPLACE FUNCTION pgtest.assert_equals(s_expected_value %s, s_real_value %1$s)
+    EXECUTE format('CREATE OR REPLACE FUNCTION pgtest.assert_equals(s_expected_value %s, s_real_value %1$s, s_message TEXT DEFAULT ''Expected: %%1$s. But was: %%2$s.'')
                       RETURNS void AS
                     $$
                     BEGIN
                       IF (NOT(s_expected_value = s_real_value)) THEN
-                        RAISE EXCEPTION ''Expected: %%. But was: %%'', s_expected_value, s_real_value;
+                        RAISE EXCEPTION ''%%'', format(s_message, s_expected_value, s_real_value);
                       END IF;
                     END
                     $$ LANGUAGE plpgsql
                       SECURITY DEFINER
                       SET search_path=pgtest, pg_temp;', s_data_type_name);
 
-    EXECUTE format('CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(s_not_expected_value %s, s_real_value %1$s)
+    EXECUTE format('CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(s_not_expected_value %s, s_real_value %1$s, s_message TEXT DEFAULT ''Not expected: %%1$s. But was: %%2$s.'')
                       RETURNS void AS
                     $$
                     BEGIN
                       IF (s_not_expected_value = s_real_value) THEN
-                        RAISE EXCEPTION ''Not expected: %%. But was: %%'', s_not_expected_value, s_real_value;
+                        RAISE EXCEPTION ''%%'', format(s_message, s_not_expected_value, s_real_value);
                       END IF;
                     END
                     $$ LANGUAGE plpgsql
@@ -204,7 +204,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_true(b_value BOOLEAN, s_message TEXT DEFAULT 'Expected: TRUE. But was: FALSE')
+CREATE OR REPLACE FUNCTION pgtest.assert_true(b_value BOOLEAN, s_message TEXT DEFAULT 'Expected: TRUE. But was: FALSE.')
   RETURNS void AS
 $$
 BEGIN
@@ -217,7 +217,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_false(b_value BOOLEAN, s_message TEXT DEFAULT 'Expected: FALSE. But was: TRUE')
+CREATE OR REPLACE FUNCTION pgtest.assert_false(b_value BOOLEAN, s_message TEXT DEFAULT 'Expected: FALSE. But was: TRUE.')
   RETURNS void AS
 $$
 BEGIN
@@ -230,18 +230,17 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_query_equals(s_expected_recordset TEXT[][], s_sql_query TEXT)
+CREATE OR REPLACE FUNCTION pgtest.assert_query_equals(s_expected_recordset TEXT[][], s_sql_query TEXT, s_message TEXT DEFAULT 'Expected: %1$s. But was: %2$s.')
   RETURNS void AS
 $$
 DECLARE
-  s_sql TEXT;
   s_actual_recordset TEXT[][];
 BEGIN
   EXECUTE format('SELECT pgtest.array_agg_mult(ARRAY[t.values]) FROM (
                     SELECT pgtest.f_json_object_values_to_array(row_to_json(query)) AS values
                     FROM (%s) query
                   ) t;', s_sql_query) INTO s_actual_recordset;
-  PERFORM pgtest.assert_equals(s_expected_recordset, s_actual_recordset);
+  PERFORM pgtest.assert_equals(s_expected_recordset, s_actual_recordset, s_message);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
