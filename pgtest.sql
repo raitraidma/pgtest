@@ -3,6 +3,10 @@ CREATE SCHEMA IF NOT EXISTS pgtest;
 ---------------
 -- EXECUTION --
 ---------------
+DROP SEQUENCE IF EXISTS pgtest.unique_id;
+CREATE SEQUENCE pgtest.unique_id CYCLE;
+
+
 DROP AGGREGATE IF EXISTS pgtest.array_agg_mult (ANYARRAY);
 
 
@@ -244,11 +248,20 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.mock(s_mock_function_description TEXT)
+CREATE OR REPLACE FUNCTION pgtest.mock(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_arguments VARCHAR, s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
   RETURNS void AS
 $$
+DECLARE
+  s_random_string VARCHAR := md5(random()::text);
+  i_unique_id BIGINT := nextval('pgtest.unique_id');
 BEGIN
-  EXECUTE s_mock_function_description;
+  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name || '_' || s_random_string || '_' || i_unique_id || ';';
+
+  EXECUTE 'ALTER FUNCTION ' || s_mock_function_schema_name || '.' || s_mock_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name ||';';
+
+  IF (s_mock_function_schema_name <> s_original_function_schema_name) THEN
+    EXECUTE 'ALTER FUNCTION ' || s_mock_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') SET SCHEMA ' || s_original_function_schema_name || ';';
+  END IF;
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
