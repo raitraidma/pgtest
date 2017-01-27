@@ -69,3 +69,10 @@ SET client_min_messages TO NOTICE;
 * `pgtest.simple_mock(original_function_schema_name, original_function_name, function_arguments, mock_function_schema_name, mock_function_name)` - replaces original function with mock function. All parameters are `VARCHAR` type. `function_arguments` are function parameters separated by commas (just like usual function definition in Postgres).
 * `pgtest.mock(original_function_schema_name, original_function_name, s_function_argument_types, mock_function_schema_name, mock_function_name)`. All parameters but `s_function_argument_types` are `VARCHAR` type. `s_function_argument_types` is array of `VARCHAR`. Values in `s_function_argument_types` must match with values in column `data_type` in table `information_schema.parameters`. This function returns mock_id (`VARCHAR`) that can be used to assert mock function calls.
 * `pgtest.assert_mock_called(mock_id [, expected_times_called [, custom_error_message]])` - `mock_id` is value returned by `pgtest.mock` function. `expected_times_called` tells how many times we expect the mock function to be called (by default 1).
+
+## Alternatives
+* [PGUnit 1](http://en.dklab.ru/lib/dklab_pgunit/)
+* [PGUnit 2](https://github.com/adrianandrei-ca/pgunit)
+* [plpgunit](https://github.com/mixerp/plpgunit)
+* [pgTAP](https://github.com/theory/pgtap)
+* [Dis](https://github.com/Imperium/Dis)
