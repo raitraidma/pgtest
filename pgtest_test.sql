@@ -26,6 +26,28 @@ $$ LANGUAGE sql
 -----------
 -- Tests --
 -----------
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_null_compares_with_null()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_null(NULL::TEXT);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_not_null_compares_with_empty_text()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_not_null(''::TEXT);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_asset_true_compares_with_true()
   RETURNS void AS
 $$
@@ -48,11 +70,40 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_same_int()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_equals(25, 25);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_different_ints()
+  RETURNS void AS
+$$
+DECLARE
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_equals(25, 29);
+  EXCEPTION
+    WHEN OTHERS THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'Ints should not be equal.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_same_text()
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_equals('some text', 'some text');
+  PERFORM pgtest.assert_equals('some text'::TEXT, 'some text');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -66,7 +117,7 @@ DECLARE
   b_pass BOOLEAN := FALSE;
 BEGIN
   BEGIN
-    PERFORM pgtest.assert_equals('some text', 'some other text');
+    PERFORM pgtest.assert_equals('some text'::TEXT, 'some other text');
   EXCEPTION
     WHEN OTHERS THEN b_pass := TRUE;
   END;
@@ -81,7 +132,7 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_assert_not_equals_compares_different
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_not_equals('some text', 'some other text');
+  PERFORM pgtest.assert_not_equals('some text'::TEXT, 'some other text');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -95,7 +146,7 @@ DECLARE
   b_pass BOOLEAN := FALSE;
 BEGIN
   BEGIN
-    PERFORM pgtest.assert_not_equals('some text', 'some text');
+    PERFORM pgtest.assert_not_equals('some text'::TEXT, 'some text');
   EXCEPTION
     WHEN OTHERS THEN b_pass := TRUE;
   END;
@@ -113,7 +164,7 @@ DECLARE
   s_message_text TEXT;
 BEGIN
   BEGIN
-    PERFORM pgtest.assert_equals('some text', 'some other text');
+    PERFORM pgtest.assert_equals('some text'::TEXT, 'some other text');
   EXCEPTION
     WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS s_message_text = MESSAGE_TEXT;
@@ -132,7 +183,7 @@ DECLARE
   s_message_text TEXT;
 BEGIN
   BEGIN
-    PERFORM pgtest.assert_equals('some text', 'some other text', 'First: %1$s. Second: %2$s.');
+    PERFORM pgtest.assert_equals('some text'::TEXT, 'some other text', 'First: %1$s. Second: %2$s.');
   EXCEPTION
     WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS s_message_text = MESSAGE_TEXT;

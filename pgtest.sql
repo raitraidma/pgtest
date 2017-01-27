@@ -1,3 +1,4 @@
+DROP SCHEMA IF EXISTS pgtest CASCADE;
 CREATE SCHEMA IF NOT EXISTS pgtest;
 
 ---------------
@@ -285,48 +286,12 @@ $$ LANGUAGE plpgsql
 -- ASSERTIONS --
 ----------------
 
-DO LANGUAGE plpgsql $BODY$
-DECLARE
-  s_data_type_name VARCHAR;
-BEGIN
-  -- Not using ANYNONARRAY, because then casting is needed.
-  FOR s_data_type_name IN (
-    SELECT unnest(ARRAY['BIGINT', 'BIT', 'BOOLEAN', 'CHAR', 'VARCHAR', 'DOUBLE PRECISION', 'INT', 'REAL', 'SMALLINT', 'TEXT', 'TIME', 'TIMETZ', 'TIMESTAMP', 'TIMESTAMPTZ', 'XML'])
-  ) LOOP
-    EXECUTE format('CREATE OR REPLACE FUNCTION pgtest.assert_equals(s_expected_value %s, s_real_value %1$s, s_message TEXT DEFAULT ''Expected: %%1$s. But was: %%2$s.'')
-                      RETURNS void AS
-                    $$
-                    BEGIN
-                      IF (NOT(s_expected_value = s_real_value)) THEN
-                        RAISE EXCEPTION ''%%'', format(s_message, s_expected_value, s_real_value);
-                      END IF;
-                    END
-                    $$ LANGUAGE plpgsql
-                      SECURITY DEFINER
-                      SET search_path=pgtest, pg_temp;', s_data_type_name);
-
-    EXECUTE format('CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(s_not_expected_value %s, s_real_value %1$s, s_message TEXT DEFAULT ''Not expected: %%1$s. But was: %%2$s.'')
-                      RETURNS void AS
-                    $$
-                    BEGIN
-                      IF (s_not_expected_value = s_real_value) THEN
-                        RAISE EXCEPTION ''%%'', format(s_message, s_not_expected_value, s_real_value);
-                      END IF;
-                    END
-                    $$ LANGUAGE plpgsql
-                      SECURITY DEFINER
-                      SET search_path=pgtest, pg_temp;', s_data_type_name);
-  END LOOP;
-END
-$BODY$;
-
-
-CREATE OR REPLACE FUNCTION pgtest.assert_equals(a_expected_array ANYARRAY, a_actual_array ANYARRAY, s_message TEXT DEFAULT 'Expected: %1$s. But was: %2$s.')
+CREATE OR REPLACE FUNCTION pgtest.assert_equals(x_expected_value ANYELEMENT, x_actual_value ANYELEMENT, s_message TEXT DEFAULT 'Expected: %1$s. But was: %2$s.')
   RETURNS void AS
 $$
 BEGIN
-  IF (NOT(a_expected_array = a_actual_array)) THEN
-    RAISE EXCEPTION '%', format(s_message, a_expected_array, a_actual_array);
+  IF (NOT(x_expected_value = x_actual_value)) THEN
+    RAISE EXCEPTION '%', format(s_message, x_expected_value, x_actual_value);
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -334,12 +299,12 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(a_not_expected_array ANYARRAY, a_actual_array ANYARRAY, s_message TEXT DEFAULT 'Not expected: %1$s. But was: %2$s.')
+CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(x_not_expected_value ANYELEMENT, x_actual_value ANYELEMENT, s_message TEXT DEFAULT 'Not expected: %1$s. But was: %2$s.')
   RETURNS void AS
 $$
 BEGIN
-  IF (a_not_expected_array = a_actual_array) THEN
-    RAISE EXCEPTION '%', format(s_message, a_not_expected_array, a_actual_array);
+  IF (x_not_expected_value = x_actual_value) THEN
+    RAISE EXCEPTION '%', format(s_message, x_not_expected_value, x_actual_value);
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -365,6 +330,32 @@ CREATE OR REPLACE FUNCTION pgtest.assert_false(b_value BOOLEAN, s_message TEXT D
 $$
 BEGIN
   IF (b_value) THEN
+    RAISE EXCEPTION '%', s_message;
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_null(x_value ANYELEMENT, s_message TEXT DEFAULT 'Expected: NULL. But was: %1$s.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (x_value IS NOT NULL) THEN
+    RAISE EXCEPTION '%', format(s_message, x_value);
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_not_null(x_value ANYELEMENT, s_message TEXT DEFAULT 'Not expected to be NULL.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (x_value IS NULL) THEN
     RAISE EXCEPTION '%', s_message;
   END IF;
 END
