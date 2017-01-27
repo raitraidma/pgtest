@@ -138,6 +138,53 @@ $$ LANGUAGE sql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_get_function_parameters(j_original_function_description JSON)
+  RETURNS varchar AS
+$$
+DECLARE
+  s_parameters VARCHAR := '';
+  s_parameter_modes VARCHAR[];
+  s_parameter_names VARCHAR[];
+  s_parameter_data_types VARCHAR[];
+  s_parameter_defaults VARCHAR[];
+  i_position INT;
+BEGIN
+    SELECT
+    array_agg(f2.parameter_mode) AS parameter_modes
+  , array_agg(f2.parameter_name) AS parameter_names
+  , array_agg(f2.parameter_data_type) AS parameter_data_types
+  , array_agg(f2.parameter_default) AS parameter_defaults
+  INTO
+    s_parameter_modes, s_parameter_names, s_parameter_data_types, s_parameter_defaults
+  FROM (
+    SELECT
+      json_array_elements_text(j_original_function_description->'parameter_modes') AS parameter_mode
+    , json_array_elements_text(j_original_function_description->'parameter_names') AS parameter_name
+    , json_array_elements_text(j_original_function_description->'parameter_data_types') AS parameter_data_type
+    , json_array_elements_text(j_original_function_description->'parameter_defaults') AS parameter_default
+  ) f2;
+
+  IF (s_parameter_data_types[1] IS NULL) THEN
+    RETURN '';
+  END IF;
+
+  FOR i_position IN 1 .. array_length(s_parameter_data_types, 1) LOOP
+    IF (i_position > 1) THEN
+      s_parameters := s_parameters || ', ';
+    END IF;
+    s_parameters := s_parameters || coalesce(s_parameter_modes[i_position], '') || ' '
+                                 || coalesce(s_parameter_names[i_position], '') || ' '
+                                 || coalesce(s_parameter_data_types[i_position], '') || ' '
+                                 || coalesce(' DEFAULT ' || s_parameter_defaults[i_position], '');
+  END LOOP;
+
+  RETURN s_parameters;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_create_mock_function(s_mock_id VARCHAR, j_original_function_description JSON, s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
   RETURNS void AS
 $$
@@ -153,8 +200,15 @@ BEGIN
                   $MOCK$
                   DECLARE
                     s_mock_id VARCHAR := ''%5$s'';
+                    s_arguments JSON;
                   BEGIN
-                    UPDATE temp_pgtest_mock SET times_called = times_called+1 WHERE mock_id = s_mock_id;
+                    s_arguments := to_json(ARRAY[%9$s]::TEXT[]);
+                    
+                    UPDATE temp_pgtest_mock
+                    SET times_called = times_called + 1
+                      , called_with_arguments = array_to_json(array_append(array(SELECT * FROM json_array_elements(called_with_arguments)), s_arguments))
+                    WHERE mock_id = s_mock_id;
+
                     %6$s %7$s.%8$s(%9$s);
                   END
                   $MOCK$ LANGUAGE plpgsql
@@ -162,8 +216,7 @@ BEGIN
                     SET search_path=%1$s, pg_temp;'
   , j_original_function_description->>'routine_schema'
   , j_original_function_description->>'routine_name'
-  -- TODO: Add IN/OUT and default values to parameters.
-  , (SELECT string_agg(t.types, ',') FROM (SELECT json_array_elements_text(j_original_function_description->'parameter_data_types') AS types) t)
+  , pgtest.f_get_function_parameters(j_original_function_description)
   , j_original_function_description->>'routine_data_type'
   , s_mock_id
   , s_call_method
@@ -374,6 +427,7 @@ BEGIN
   CREATE TEMP TABLE IF NOT EXISTS temp_pgtest_mock(
     mock_id VARCHAR UNIQUE
   , times_called INT DEFAULT 0
+  , called_with_arguments JSON DEFAULT '[]'::JSON
   ) ON COMMIT DROP;
 
   INSERT INTO temp_pgtest_mock(mock_id) VALUES (s_mock_id);
@@ -401,9 +455,41 @@ BEGIN
   WHERE mock_id = s_mock_id;
 
   IF (i_actual_times_called IS NULL) THEN
-    RAISE EXCEPTION 'Mock with id "%" not found', s_mock_id;
+    RAISE EXCEPTION 'Mock with id "%" not found.', s_mock_id;
+  ELSIF (i_expected_times_called < 0) THEN
+    RAISE EXCEPTION 'Expected times called must be >= 0 not %.', i_expected_times_called;
   ELSIF (i_expected_times_called <> i_actual_times_called) THEN
     RAISE EXCEPTION '%', format(s_message, i_expected_times_called, i_actual_times_called);
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_mock_called_with_arguments(s_mock_id VARCHAR, s_expected_arguments TEXT[], i_call_time INT, s_message TEXT DEFAULT 'Function expected to be called %1$s. time with arguments %2$s. But they were %3$s.')
+  RETURNS void AS
+$$
+DECLARE
+  i_actual_times_called INT;
+  j_called_with_arguments JSON;
+  s_actual_arguments TEXT[];
+BEGIN
+  SELECT times_called, called_with_arguments
+  INTO i_actual_times_called, j_called_with_arguments
+  FROM temp_pgtest_mock
+  WHERE mock_id = s_mock_id;
+
+  IF (i_call_time > i_actual_times_called) THEN
+    RAISE EXCEPTION 'Checking for parameters in call number % but only % call(s) were made.', i_call_time, i_actual_times_called;
+  ELSIF (i_call_time < 1) THEN
+    RAISE EXCEPTION 'Call time must be >= 1 not %.', i_call_time;
+  END IF;
+
+  SELECT array(SELECT json_array_elements_text((j_called_with_arguments)->(i_call_time-1))) INTO s_actual_arguments;
+
+  IF (NOT(array(SELECT json_array_elements_text((j_called_with_arguments)->(i_call_time-1))) = s_expected_arguments)) THEN
+    RAISE EXCEPTION '%', format(s_message, i_call_time, s_expected_arguments, s_actual_arguments);
   END IF;
 END
 $$ LANGUAGE plpgsql
