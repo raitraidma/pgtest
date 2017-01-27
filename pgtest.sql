@@ -74,7 +74,7 @@ DECLARE
   s_pg_exception_context TEXT;
 BEGIN
   EXECUTE 'SELECT ' || s_schema_name || '.' || s_function_name || '();';
-  RAISE 'OK' USING ERRCODE = '40004';
+  RAISE EXCEPTION 'OK' USING ERRCODE = '40004';
 EXCEPTION
   WHEN SQLSTATE '40004' THEN
     RETURN 'OK';
@@ -232,6 +232,17 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.fails(s_message TEXT)
+  RETURNS void AS
+$$
+BEGIN
+  RAISE EXCEPTION '%', s_message USING ERRCODE = '40005';
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.run_tests(s_schema_names VARCHAR[])
   RETURNS int AS
 $$
@@ -262,7 +273,7 @@ BEGIN
 
   t_end_time := clock_timestamp();
   RAISE NOTICE 'Executed % tests of which % failed in %', i_test_count, i_error_count, (t_end_time - t_start_time);
-  RAISE 'PgTest ended.'; -- To rollback all changes that were made during tests.
+  RAISE EXCEPTION 'PgTest ended.';
 EXCEPTION
   WHEN OTHERS THEN
     RETURN i_error_count;
@@ -291,7 +302,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_equals(x_expected_value ANYELEMENT, x_a
 $$
 BEGIN
   IF (NOT(x_expected_value = x_actual_value)) THEN
-    RAISE EXCEPTION '%', format(s_message, x_expected_value, x_actual_value);
+    PERFORM pgtest.fails(format(s_message, x_expected_value, x_actual_value));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -304,7 +315,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_not_equals(x_not_expected_value ANYELEM
 $$
 BEGIN
   IF (x_not_expected_value = x_actual_value) THEN
-    RAISE EXCEPTION '%', format(s_message, x_not_expected_value, x_actual_value);
+    PERFORM pgtest.fails(format(s_message, x_not_expected_value, x_actual_value));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -317,7 +328,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_true(b_value BOOLEAN, s_message TEXT DE
 $$
 BEGIN
   IF (NOT(b_value)) THEN
-    RAISE EXCEPTION '%', s_message;
+    PERFORM pgtest.fails(s_message);
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -330,7 +341,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_false(b_value BOOLEAN, s_message TEXT D
 $$
 BEGIN
   IF (b_value) THEN
-    RAISE EXCEPTION '%', s_message;
+    PERFORM pgtest.fails(s_message);
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -343,7 +354,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_null(x_value ANYELEMENT, s_message TEXT
 $$
 BEGIN
   IF (x_value IS NOT NULL) THEN
-    RAISE EXCEPTION '%', format(s_message, x_value);
+    PERFORM pgtest.fails(format(s_message, x_value));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -356,7 +367,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_not_null(x_value ANYELEMENT, s_message 
 $$
 BEGIN
   IF (x_value IS NULL) THEN
-    RAISE EXCEPTION '%', s_message;
+    PERFORM pgtest.fails(s_message);
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -446,11 +457,11 @@ BEGIN
   WHERE mock_id = s_mock_id;
 
   IF (i_actual_times_called IS NULL) THEN
-    RAISE EXCEPTION 'Mock with id "%" not found.', s_mock_id;
+    PERFORM pgtest.fails(format('Mock with id "%" not found.', s_mock_id));
   ELSIF (i_expected_times_called < 0) THEN
-    RAISE EXCEPTION 'Expected times called must be >= 0 not %.', i_expected_times_called;
+    PERFORM pgtest.fails(format('Expected times called must be >= 0 not %.', i_expected_times_called));
   ELSIF (i_expected_times_called <> i_actual_times_called) THEN
-    RAISE EXCEPTION '%', format(s_message, i_expected_times_called, i_actual_times_called);
+    PERFORM pgtest.fails(format(s_message, i_expected_times_called, i_actual_times_called));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -472,15 +483,15 @@ BEGIN
   WHERE mock_id = s_mock_id;
 
   IF (i_call_time > i_actual_times_called) THEN
-    RAISE EXCEPTION 'Checking for parameters in call number % but only % call(s) were made.', i_call_time, i_actual_times_called;
+    PERFORM pgtest.fails(format('Checking for parameters in call number % but only % call(s) were made.', i_call_time, i_actual_times_called));
   ELSIF (i_call_time < 1) THEN
-    RAISE EXCEPTION 'Call time must be >= 1 not %.', i_call_time;
+    PERFORM pgtest.fails(format('Call time must be >= 1 not %.', i_call_time));
   END IF;
 
   SELECT array(SELECT json_array_elements_text((j_called_with_arguments)->(i_call_time-1))) INTO s_actual_arguments;
 
   IF (NOT(array(SELECT json_array_elements_text((j_called_with_arguments)->(i_call_time-1))) = s_expected_arguments)) THEN
-    RAISE EXCEPTION '%', format(s_message, i_call_time, s_expected_arguments, s_actual_arguments);
+    PERFORM pgtest.fails(format(s_message, i_call_time, s_expected_arguments, s_actual_arguments));
   END IF;
 END
 $$ LANGUAGE plpgsql

@@ -54,14 +54,21 @@ If you do not want to see pg_exception_context in messages then change `client_m
 SET client_min_messages TO NOTICE;
 ```
 
+When using `psql` then you can hide `CONTEXT` info by using:
+```sql
+\set VERBOSITY terse
+```
+
 ## Assertions
 * `pgtest.assert_equals(expected_value, real_value [, custom_error_message]);`
 * `pgtest.assert_not_equals(not_expected_value, real_value [, custom_error_message]);`
 * `pgtest.assert_true(boolean_value [, custom_error_message]);`
 * `pgtest.assert_false(boolean_value [, custom_error_message]);`
+* `pgtest.assert_null(value [, custom_error_message]);`
+* `pgtest.assert_not_null(value [, custom_error_message]);`
 * `pgtest.assert_query_equals(expected_recordset, sql_query [, custom_error_message])`
 
-`expected_value` and `real_value` must be same type (BIGINT, BIT, BOOLEAN, CHAR, VARCHAR, DOUBLE PRECISION, INT, REAL, SMALLINT, TEXT, TIME, TIMETZ, TIMESTAMP, TIMESTAMPTZ, XML or array).
+`expected_value` and `real_value` must be same type (base type or array).
 
 `expected_recordset` is array TEXT[][] (e.g `ARRAY[ARRAY['a', 'b'], ARRAY['c', 'd']]`) and `sql_query` is sql query as text (e.g `'SELECT ''a'', ''b'''`).
 

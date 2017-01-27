@@ -90,7 +90,7 @@ BEGIN
   BEGIN
     PERFORM pgtest.assert_equals(25, 29);
   EXCEPTION
-    WHEN OTHERS THEN b_pass := TRUE;
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
   PERFORM pgtest.assert_true(b_pass, 'Ints should not be equal.');
 END
@@ -119,7 +119,7 @@ BEGIN
   BEGIN
     PERFORM pgtest.assert_equals('some text'::TEXT, 'some other text');
   EXCEPTION
-    WHEN OTHERS THEN b_pass := TRUE;
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
   PERFORM pgtest.assert_true(b_pass, 'Texts should not be equal.');
 END
@@ -148,7 +148,7 @@ BEGIN
   BEGIN
     PERFORM pgtest.assert_not_equals('some text'::TEXT, 'some text');
   EXCEPTION
-    WHEN OTHERS THEN b_pass := TRUE;
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
   PERFORM pgtest.assert_true(b_pass, 'Texts should be equal.');
 END
@@ -166,7 +166,7 @@ BEGIN
   BEGIN
     PERFORM pgtest.assert_equals('some text'::TEXT, 'some other text');
   EXCEPTION
-    WHEN OTHERS THEN
+    WHEN SQLSTATE '40005' THEN
       GET STACKED DIAGNOSTICS s_message_text = MESSAGE_TEXT;
   END;
   PERFORM pgtest.assert_equals('Expected: some text. But was: some other text.', s_message_text);
@@ -185,7 +185,7 @@ BEGIN
   BEGIN
     PERFORM pgtest.assert_equals('some text'::TEXT, 'some other text', 'First: %1$s. Second: %2$s.');
   EXCEPTION
-    WHEN OTHERS THEN
+    WHEN SQLSTATE '40005' THEN
       GET STACKED DIAGNOSTICS s_message_text = MESSAGE_TEXT;
   END;
   PERFORM pgtest.assert_equals('First: some text. Second: some other text.', s_message_text);
@@ -290,12 +290,13 @@ BEGIN
     PERFORM pgtest_test.f_test_function('c');
     PERFORM pgtest.assert_mock_called_with_arguments(s_mock_id, ARRAY['d'], 2);
   EXCEPTION
-    WHEN OTHERS THEN b_pass := TRUE;
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
   PERFORM pgtest.assert_true(b_pass, 'assert_mock_called_with_arguments should throw exception, because arguments do not match.');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
+
 
 SELECT pgtest.run_tests('pgtest_test');
