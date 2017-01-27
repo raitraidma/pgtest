@@ -67,6 +67,8 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_null(value [, custom_error_message]);`
 * `pgtest.assert_not_null(value [, custom_error_message]);`
 * `pgtest.assert_query_equals(expected_recordset, sql_query [, custom_error_message])`
+* `pgtest.assert_table_exists(schema_name, table_name [, custom_error_message])`
+* `pgtest.assert_table_not_exist(schema_name, table_name [, custom_error_message])`
 
 `expected_value` and `real_value` must be same type (base type or array).
 

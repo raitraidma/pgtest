@@ -299,4 +299,26 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_table_exists_with_existing_table()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_table_exists('information_schema', 'tables');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_table_not_exist_with_non_existing_table()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_table_not_exist('pgtest', 'tables');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 SELECT pgtest.run_tests('pgtest_test');

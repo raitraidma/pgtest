@@ -391,6 +391,41 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
+
+CREATE OR REPLACE FUNCTION pgtest.f_table_exists(s_schema_name VARCHAR, s_table_name VARCHAR)
+  RETURNS boolean AS
+$$
+  SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = s_schema_name AND table_name = s_table_name);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_table_exists(s_schema_name VARCHAR, s_table_name VARCHAR, s_message TEXT DEFAULT 'Table %1$s.%2$s does not exist.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT pgtest.f_table_exists(s_schema_name, s_table_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_table_not_exist(s_schema_name VARCHAR, s_table_name VARCHAR, s_message TEXT DEFAULT 'Table %1$s.%2$s exists.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (pgtest.f_table_exists(s_schema_name, s_table_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
 -------------
 -- MOCKING --
 -------------
