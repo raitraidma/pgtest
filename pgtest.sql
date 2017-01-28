@@ -395,7 +395,12 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION pgtest.f_relation_exists(s_schema_name VARCHAR, s_table_name VARCHAR, s_table_type VARCHAR)
   RETURNS boolean AS
 $$
-  SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = s_schema_name AND table_name = s_table_name AND table_type = s_table_type);
+  SELECT EXISTS ( SELECT 1
+                  FROM pg_class c
+                  LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE n.nspname = s_schema_name
+                  AND c.relname = s_table_name
+                  AND c.relkind = s_table_type);
 $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
@@ -405,7 +410,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_table_exists(s_schema_name VARCHAR, s_t
   RETURNS void AS
 $$
 BEGIN
-  IF (NOT pgtest.f_relation_exists(s_schema_name, s_table_name, 'BASE TABLE')) THEN
+  IF (NOT pgtest.f_relation_exists(s_schema_name, s_table_name, 'r')) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name));
   END IF;
 END
@@ -418,7 +423,7 @@ CREATE OR REPLACE FUNCTION pgtest.assert_table_does_not_exist(s_schema_name VARC
   RETURNS void AS
 $$
 BEGIN
-  IF (pgtest.f_relation_exists(s_schema_name, s_table_name, 'BASE TABLE')) THEN
+  IF (pgtest.f_relation_exists(s_schema_name, s_table_name, 'r')) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name));
   END IF;
 END
@@ -431,8 +436,8 @@ CREATE OR REPLACE FUNCTION pgtest.assert_view_exists(s_schema_name VARCHAR, s_vi
   RETURNS void AS
 $$
 BEGIN
-  IF (NOT pgtest.f_relation_exists(s_schema_name, s_view_name, 'VIEW')) THEN
-    PERFORM pgtest.fails(format(s_message, s_view_name, s_table_name));
+  IF (NOT pgtest.f_relation_exists(s_schema_name, s_view_name, 'v')) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_view_name));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -444,8 +449,34 @@ CREATE OR REPLACE FUNCTION pgtest.assert_view_does_not_exist(s_schema_name VARCH
   RETURNS void AS
 $$
 BEGIN
-  IF (pgtest.f_relation_exists(s_schema_name, s_view_name, 'VIEW')) THEN
-    PERFORM pgtest.fails(format(s_message, s_view_name, s_table_name));
+  IF (pgtest.f_relation_exists(s_schema_name, s_view_name, 'v')) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_view_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_mat_view_exists(s_schema_name VARCHAR, s_mat_view_name VARCHAR, s_message TEXT DEFAULT 'Materialized view %1$s.%2$s does not exist.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT pgtest.f_relation_exists(s_schema_name, s_mat_view_name, 'm')) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_mat_view_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_mat_view_does_not_exist(s_schema_name VARCHAR, s_mat_view_name VARCHAR, s_message TEXT DEFAULT 'Materialized view %1$s.%2$s exists.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (pgtest.f_relation_exists(s_schema_name, s_mat_view_name, 'm')) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_mat_view_name));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -456,7 +487,16 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION pgtest.f_relation_has_column(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR)
   RETURNS boolean AS
 $$
-  SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = s_schema_name AND table_name = s_relation_name AND column_name = s_column_name);
+  SELECT EXISTS ( SELECT 1
+                  FROM pg_catalog.pg_class c
+                  LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                  LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+                  WHERE c.relkind IN ('v', 'm', 'r')
+                  AND n.nspname = s_schema_name
+                  AND c.relname = s_relation_name
+                  AND a.attname = s_column_name
+                  AND a.attnum > 0
+                  AND NOT a.attisdropped);
 $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;

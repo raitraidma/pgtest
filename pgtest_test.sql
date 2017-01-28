@@ -23,6 +23,16 @@ $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
+CREATE TABLE pgtest_test.test_table (
+  id INT
+);
+
+CREATE VIEW pgtest_test.test_view (id) AS
+SELECT 1;
+
+CREATE MATERIALIZED VIEW pgtest_test.test_materialized_view (id) AS
+SELECT 2;
+
 -----------
 -- Tests --
 -----------
@@ -303,7 +313,7 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_asset_table_exists_with_existing_tab
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_table_exists('information_schema', 'sql_parts');
+  PERFORM pgtest.assert_table_exists('pgtest_test', 'test_table');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -314,7 +324,8 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_asset_table_does_not_exist_with_non_
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_table_does_not_exist('information_schema', 'tables');
+  PERFORM pgtest.assert_table_does_not_exist('pgtest_test', 'test_view');
+  PERFORM pgtest.assert_table_does_not_exist('pgtest_test', 'test_materialized_view');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -325,7 +336,7 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_asset_view_exists_with_existing_view
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_view_exists('information_schema', 'tables');
+  PERFORM pgtest.assert_view_exists('pgtest_test', 'test_view');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -336,31 +347,57 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_asset_view_does_not_exist_with_non_e
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_view_does_not_exist('information_schema', 'sql_parts');
+  PERFORM pgtest.assert_view_does_not_exist('pgtest_test', 'test_table');
+  PERFORM pgtest.assert_view_does_not_exist('pgtest_test', 'test_materialized_view');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.assert_relation_has_column_table_and_view_with_existing_columns()
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_mat_view_exists_with_existing_mat_view()
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_relation_has_column('information_schema', 'sql_parts', 'feature_id');
-  PERFORM pgtest.assert_relation_has_column('information_schema', 'tables', 'table_catalog');
+  PERFORM pgtest.assert_mat_view_exists('pgtest_test', 'test_materialized_view');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.assert_relation_does_not_have_column_table_and_view_with_non_existing_columns()
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_mat_view_does_not_exist_with_non_existing_mat_view()
   RETURNS void AS
 $$
 BEGIN
-  PERFORM pgtest.assert_relation_does_not_have_column('information_schema', 'sql_parts', 'non_existing_column');
-  PERFORM pgtest.assert_relation_does_not_have_column('information_schema', 'tables', 'non_existing_column');
+  PERFORM pgtest.assert_mat_view_does_not_exist('pgtest_test', 'test_table');
+  PERFORM pgtest.assert_mat_view_does_not_exist('pgtest_test', 'test_view');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_relation_has_column_relations_with_existing_columns()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_relation_has_column('pgtest_test', 'test_table', 'id');
+  PERFORM pgtest.assert_relation_has_column('pgtest_test', 'test_view', 'id');
+  PERFORM pgtest.assert_relation_has_column('pgtest_test', 'test_materialized_view', 'id');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_relation_does_not_have_column_relations_with_non_existing_columns()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_relation_does_not_have_column('pgtest_test', 'test_table', 'not_existing_column');
+  PERFORM pgtest.assert_relation_does_not_have_column('pgtest_test', 'test_view', 'not_existing_column');
+  PERFORM pgtest.assert_relation_does_not_have_column('pgtest_test', 'test_materialized_view', 'not_existing_column');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
