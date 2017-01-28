@@ -69,12 +69,14 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_query_equals(expected_recordset, sql_query [, custom_error_message])`
 * `pgtest.assert_table_exists(schema_name, table_name [, custom_error_message])`
 * `pgtest.assert_table_does_not_exist(schema_name, table_name [, custom_error_message])`
-* `pgtest.assert_relation_has_column(schema_name, table_name, column_name [, custom_error_message])`
-* `pgtest.assert_relation_does_not_have_column(schema_name, table_name, column_name [, custom_error_message])`
+* `pgtest.assert_view_exists(schema_name, view_name [, custom_error_message])`
+* `pgtest.assert_view_does_not_exist(schema_name, view_name [, custom_error_message])`
+* `pgtest.assert_relation_has_column(schema_name, relation_name, column_name [, custom_error_message])`
+* `pgtest.assert_relation_does_not_have_column(schema_name, relation_name, column_name [, custom_error_message])`
 
 `expected_value` and `real_value` must be same type (base type or array).
 
-`expected_recordset` is array TEXT[][] (e.g `ARRAY[ARRAY['a', 'b'], ARRAY['c', 'd']]`) and `sql_query` is sql query as text (e.g `'SELECT ''a'', ''b'''`).
+`expected_recordset` is array `TEXT[][]` (e.g `ARRAY[ARRAY['a', 'b'], ARRAY['c', 'd']]`) and `sql_query` is sql query as text (e.g `'SELECT ''a'', ''b'''`).
 
 ## Mocking
 * `pgtest.simple_mock(original_function_schema_name, original_function_name, function_arguments, mock_function_schema_name, mock_function_name)` - replaces original function with mock function. All parameters are `VARCHAR` type. `function_arguments` are function parameters separated by commas (just like usual function definition in Postgres).

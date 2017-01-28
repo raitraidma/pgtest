@@ -321,6 +321,28 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_view_exists_with_existing_view()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_view_exists('information_schema', 'tables');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_view_does_not_exist_with_non_existing_view()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_view_does_not_exist('information_schema', 'sql_parts');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.assert_relation_has_column_table_and_view_with_existing_columns()
   RETURNS void AS
 $$

@@ -427,21 +427,12 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.f_relation_has_column(s_schema_name VARCHAR, s_table_name VARCHAR, s_column_name VARCHAR)
-  RETURNS boolean AS
-$$
-  SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = s_schema_name AND table_name = s_table_name AND column_name = s_column_name);
-$$ LANGUAGE sql
-  SECURITY DEFINER
-  SET search_path=pgtest, pg_temp;
-
-
-CREATE OR REPLACE FUNCTION pgtest.assert_relation_has_column(s_schema_name VARCHAR, s_table_name VARCHAR, s_column_name VARCHAR, s_message TEXT DEFAULT 'Table "%1$s.%2$s" does not have column "%3$s".')
+CREATE OR REPLACE FUNCTION pgtest.assert_view_exists(s_schema_name VARCHAR, s_view_name VARCHAR, s_message TEXT DEFAULT 'View %1$s.%2$s does not exist.')
   RETURNS void AS
 $$
 BEGIN
-  IF (NOT pgtest.f_relation_has_column(s_schema_name, s_table_name, s_column_name)) THEN
-    PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_column_name));
+  IF (NOT pgtest.f_relation_exists(s_schema_name, s_view_name, 'VIEW')) THEN
+    PERFORM pgtest.fails(format(s_message, s_view_name, s_table_name));
   END IF;
 END
 $$ LANGUAGE plpgsql
@@ -449,12 +440,47 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_relation_does_not_have_column(s_schema_name VARCHAR, s_table_name VARCHAR, s_column_name VARCHAR, s_message TEXT DEFAULT 'Table "%1$s.%2$s" has column "%3$s".')
+CREATE OR REPLACE FUNCTION pgtest.assert_view_does_not_exist(s_schema_name VARCHAR, s_view_name VARCHAR, s_message TEXT DEFAULT 'View %1$s.%2$s exists.')
   RETURNS void AS
 $$
 BEGIN
-  IF (pgtest.f_relation_has_column(s_schema_name, s_table_name, s_column_name)) THEN
-    PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_column_name));
+  IF (pgtest.f_relation_exists(s_schema_name, s_view_name, 'VIEW')) THEN
+    PERFORM pgtest.fails(format(s_message, s_view_name, s_table_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.f_relation_has_column(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR)
+  RETURNS boolean AS
+$$
+  SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = s_schema_name AND table_name = s_relation_name AND column_name = s_column_name);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_relation_has_column(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR, s_message TEXT DEFAULT 'Table "%1$s.%2$s" does not have column "%3$s".')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT pgtest.f_relation_has_column(s_schema_name, s_relation_name, s_column_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_relation_name, s_column_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_relation_does_not_have_column(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR, s_message TEXT DEFAULT 'Table "%1$s.%2$s" has column "%3$s".')
+  RETURNS void AS
+$$
+BEGIN
+  IF (pgtest.f_relation_has_column(s_schema_name, s_relation_name, s_column_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_relation_name, s_column_name));
   END IF;
 END
 $$ LANGUAGE plpgsql
