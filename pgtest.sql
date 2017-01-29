@@ -166,6 +166,29 @@ $$ LANGUAGE sql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_relation_exists(s_schema_name VARCHAR, s_table_name VARCHAR, s_table_type VARCHAR)
+  RETURNS boolean AS
+$$
+  SELECT EXISTS ( SELECT 1
+                  FROM pg_class c
+                  LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE n.nspname = s_schema_name
+                  AND c.relname = s_table_name
+                  AND c.relkind = s_table_type);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.f_extension_exists(s_extension_name VARCHAR)
+  RETURNS boolean AS
+$$
+  SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_extension WHERE extname = s_extension_name);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_function_exists(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[])
   RETURNS boolean AS
 $$
@@ -428,20 +451,6 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.f_relation_exists(s_schema_name VARCHAR, s_table_name VARCHAR, s_table_type VARCHAR)
-  RETURNS boolean AS
-$$
-  SELECT EXISTS ( SELECT 1
-                  FROM pg_class c
-                  LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
-                  WHERE n.nspname = s_schema_name
-                  AND c.relname = s_table_name
-                  AND c.relkind = s_table_type);
-$$ LANGUAGE sql
-  SECURITY DEFINER
-  SET search_path=pgtest, pg_temp;
-
-
 CREATE OR REPLACE FUNCTION pgtest.assert_table_exists(s_schema_name VARCHAR, s_table_name VARCHAR, s_message TEXT DEFAULT 'Table %1$s.%2$s does not exist.')
   RETURNS void AS
 $$
@@ -583,6 +592,32 @@ $$
 BEGIN
   IF (pgtest.f_function_exists(s_schema_name, s_function_name, s_function_argument_types)) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_function_name, array_to_string(s_function_argument_types, ', ')));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_extension_exists(s_extension_name VARCHAR, s_message TEXT DEFAULT 'Extension "%1$s" does not exist.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT pgtest.f_extension_exists(s_extension_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_extension_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_extension_does_not_exist(s_extension_name VARCHAR, s_message TEXT DEFAULT 'Extension "%1$s" exists.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (pgtest.f_extension_exists(s_extension_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_extension_name));
   END IF;
 END
 $$ LANGUAGE plpgsql

@@ -77,6 +77,8 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_relation_does_not_have_column(schema_name, relation_name, column_name [, custom_error_message])`
 * `pgtest.assert_function_exists(schema_name, function_name [, function_argument_types [, custom_error_message]]);`
 * `pgtest.assert_function_does_not_exist(schema_name, function_name [, function_argument_types [, custom_error_message]]);`
+* `pgtest.assert_extension_exists(extension_name [, custom_error_message]);`
+* `pgtest.assert_extension_does_not_exist(extension_name [, custom_error_message]);`
 
 `expected_value` and `real_value` must be same type (base type or array).
 

@@ -438,6 +438,28 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_extension_exists_with_existing_extension()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_extension_exists('plpgsql');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_extension_does_not_exist_with_non_existing_extension()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_extension_does_not_exist('non_existing_extension');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_before_after()
   RETURNS void AS
 $$
