@@ -86,6 +86,10 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_mock_called(mock_id [, expected_times_called [, custom_error_message]])` - `mock_id` is value returned by `pgtest.mock` function. `expected_times_called` tells how many times we expect the mock function to be called (by default 1).
 * `pgtest.assert_mock_called_with_arguments(mock_id, expected_arguments, call_time [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` function. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`). `call_time` tells against which function call is tested.
 
+## Hooks
+* `before()` - runs before every test that's in the same schema.
+* `after()` - runs after every test that's in the same schema.
+
 ## Alternatives
 * [PGUnit 1](http://en.dklab.ru/lib/dklab_pgunit/)
 * [PGUnit 2](https://github.com/adrianandrei-ca/pgunit)

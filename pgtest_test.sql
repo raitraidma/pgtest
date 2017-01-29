@@ -404,4 +404,78 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_f_function_exists()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(pgtest.f_function_exists('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]), 'Function should exist.');
+  PERFORM pgtest.assert_false(pgtest.f_function_exists('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer']::VARCHAR[]), 'Function should not exist.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_before_after()
+  RETURNS void AS
+$$
+BEGIN
+  BEGIN
+    CREATE SCHEMA pgtest_test_hooks;
+
+    CREATE TABLE pgtest_test_hooks.execution (
+      id INT
+    , type VARCHAR
+    );
+
+    CREATE OR REPLACE FUNCTION pgtest_test_hooks.before()
+      RETURNS void AS
+    $TEST$
+    BEGIN
+      INSERT INTO pgtest_test_hooks.execution(id, type) VALUES (2, 'BEFORE');
+    END
+    $TEST$ LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path=pgtest_test_hooks, pg_temp;
+
+    CREATE OR REPLACE FUNCTION pgtest_test_hooks.test_test()
+      RETURNS void AS
+    $TEST$
+    BEGIN
+      INSERT INTO pgtest_test_hooks.execution(id, type) VALUES (3, 'TEST');
+    END
+    $TEST$ LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path=pgtest_test_hooks, pg_temp;
+
+    CREATE OR REPLACE FUNCTION pgtest_test_hooks.after()
+      RETURNS void AS
+    $TEST$
+    BEGIN
+      INSERT INTO pgtest_test_hooks.execution(id, type) VALUES (4, 'AFTER');
+    END
+    $TEST$ LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path=pgtest_test_hooks, pg_temp;
+
+    PERFORM set_config('pgtest.test_rollback_enabled', 'false', false);
+
+    PERFORM pgtest.f_run_test('pgtest_test_hooks', 'test_test');
+  EXCEPTION
+    WHEN OTHERS THEN NULL;
+  END;
+
+  PERFORM set_config('pgtest.test_rollback_enabled', 'true', false);
+
+  PERFORM pgtest.assert_query_equals(ARRAY[
+    ARRAY['2','BEFORE'],
+    ARRAY['3','TEST'],
+    ARRAY['4','AFTER']
+  ], 'SELECT id, type FROM pgtest_test_hooks.execution ORDER BY id ASC');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 SELECT pgtest.run_tests('pgtest_test');

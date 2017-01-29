@@ -65,6 +65,20 @@ $$ LANGUAGE sql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_get_current_setting(s_setting_name VARCHAR, s_default_value VARCHAR DEFAULT NULL)
+  RETURNS varchar AS
+$$
+BEGIN
+  RETURN current_setting(s_setting_name);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN s_default_value;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_run_test(s_schema_name VARCHAR, s_function_name VARCHAR)
   RETURNS varchar AS
 $$
@@ -72,9 +86,22 @@ DECLARE
   s_returned_sqlstate    TEXT;
   s_message_text         TEXT;
   s_pg_exception_context TEXT;
+  s_test_rollback_enabled VARCHAR := pgtest.f_get_current_setting('pgtest.test_rollback_enabled', 'true');
 BEGIN
+  IF (pgtest.f_function_exists(s_schema_name, 'before', ARRAY[]::VARCHAR[])) THEN
+    EXECUTE 'SELECT ' || s_schema_name || '.before();';
+  END IF;
+
   EXECUTE 'SELECT ' || s_schema_name || '.' || s_function_name || '();';
-  RAISE EXCEPTION 'OK' USING ERRCODE = '40004';
+
+  IF (pgtest.f_function_exists(s_schema_name, 'after', ARRAY[]::VARCHAR[])) THEN
+    EXECUTE 'SELECT ' || s_schema_name || '.after();';
+  END IF;
+  
+  IF (s_test_rollback_enabled = 'true') THEN
+    RAISE EXCEPTION 'OK' USING ERRCODE = '40004';
+  END IF;
+  RETURN 'OK';
 EXCEPTION
   WHEN SQLSTATE '40004' THEN
     RETURN 'OK';
@@ -134,6 +161,15 @@ $$
     WHEN array_length(s_function_argument_types, 1) IS NULL THEN ARRAY[NULL]::VARCHAR[]
     ELSE s_function_argument_types
   END);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.f_function_exists(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[])
+  RETURNS boolean AS
+$$
+  SELECT pgtest.f_get_function_description(s_schema_name, s_function_name, s_function_argument_types) IS NOT NULL;
 $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
