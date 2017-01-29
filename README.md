@@ -84,7 +84,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 
 `expected_recordset` is array `TEXT[][]` (e.g `ARRAY[ARRAY['a', 'b'], ARRAY['c', 'd']]`) and `sql_query` is sql query as text (e.g `'SELECT ''a'', ''b'''`).
 
-`function_argument_types` is array of argument types (e.g ARRAY['character varying', 'integer']::VARCHAR[]. Default value is ARRAY[]::VARCHAR[]).
+`function_argument_types` is array of argument types (e.g `ARRAY['character varying', 'integer']::VARCHAR[]`. Default value is `ARRAY[]::VARCHAR[]`).
 
 ## Mocking
 * `pgtest.simple_mock(original_function_schema_name, original_function_name, function_arguments, mock_function_schema_name, mock_function_name)` - replaces original function with mock function. All parameters are `VARCHAR` type. `function_arguments` are function parameters separated by commas (just like usual function definition in Postgres).
