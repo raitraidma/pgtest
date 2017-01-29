@@ -79,6 +79,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_function_does_not_exist(schema_name, function_name [, function_argument_types [, custom_error_message]]);`
 * `pgtest.assert_extension_exists(extension_name [, custom_error_message]);`
 * `pgtest.assert_extension_does_not_exist(extension_name [, custom_error_message]);`
+* `pgtest.assert_column_type(schema_name, relation_name, column_name, expected_column_type [, custom_error_message]);`
 
 `expected_value` and `real_value` must be same type (base type or array).
 
@@ -86,9 +87,11 @@ When using `psql` then you can hide `CONTEXT` info by using:
 
 `function_argument_types` is array of argument types (e.g `ARRAY['character varying', 'integer']::VARCHAR[]`. Default value is `ARRAY[]::VARCHAR[]`).
 
+`expected_column_type` must be SQL name of a data type.
+
 ## Mocking
 * `pgtest.simple_mock(original_function_schema_name, original_function_name, function_arguments, mock_function_schema_name, mock_function_name)` - replaces original function with mock function. All parameters are `VARCHAR` type. `function_arguments` are function parameters separated by commas (just like usual function definition in Postgres).
-* `pgtest.mock(original_function_schema_name, original_function_name, s_function_argument_types, mock_function_schema_name, mock_function_name)`. All parameters but `s_function_argument_types` are `VARCHAR` type. `s_function_argument_types` is array of `VARCHAR`. Values in `s_function_argument_types` must match with values in column `data_type` in table `information_schema.parameters`. This function returns mock_id (`VARCHAR`) that can be used to assert mock function calls.
+* `pgtest.mock(original_function_schema_name, original_function_name, function_argument_types, mock_function_schema_name, mock_function_name)`. All parameters but `function_argument_types` are `VARCHAR` type. `function_argument_types` is array of `VARCHAR`. Values in `function_argument_types` must be SQL names of a data types (must match with values in column `data_type` in table `information_schema.parameters`). This function returns mock_id (`VARCHAR`) that can be used to assert mock function calls.
 * `pgtest.assert_mock_called(mock_id [, expected_times_called [, custom_error_message]])` - `mock_id` is value returned by `pgtest.mock` function. `expected_times_called` tells how many times we expect the mock function to be called (by default 1).
 * `pgtest.assert_mock_called_with_arguments(mock_id, expected_arguments, call_time [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` function. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`). `call_time` tells against which function call is tested.
 

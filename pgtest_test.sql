@@ -460,6 +460,19 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_column_type()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_column_type('pgtest_test', 'test_table', 'id', 'integer');
+  PERFORM pgtest.assert_column_type('pgtest_test', 'test_view', 'id', 'integer');
+  PERFORM pgtest.assert_column_type('pgtest_test', 'test_materialized_view', 'id', 'integer');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_before_after()
   RETURNS void AS
 $$

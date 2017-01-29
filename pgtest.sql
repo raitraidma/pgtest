@@ -189,6 +189,25 @@ $$ LANGUAGE sql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_column_type(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR)
+  RETURNS varchar AS
+$$
+  SELECT pg_catalog.format_type(t.oid, NULL)
+  FROM pg_catalog.pg_class c
+  LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+  LEFT JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+  WHERE c.relkind IN ('v', 'm', 'r')
+    AND n.nspname = s_schema_name
+    AND c.relname = s_relation_name
+    AND a.attname = s_column_name
+    AND a.attnum > 0
+    AND NOT a.attisdropped;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_function_exists(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[])
   RETURNS boolean AS
 $$
@@ -618,6 +637,21 @@ $$
 BEGIN
   IF (pgtest.f_extension_exists(s_extension_name)) THEN
     PERFORM pgtest.fails(format(s_message, s_extension_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_column_type(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR, s_expected_column_type VARCHAR, s_message TEXT DEFAULT 'Column "%3$s" in table "%1$s.%2$s" expects to be type of "%4$s", but is type of "%5$s".')
+  RETURNS void AS
+$$
+DECLARE
+  s_actual_column_type VARCHAR := pgtest.f_column_type(s_schema_name, s_relation_name, s_column_name);
+BEGIN
+  IF (NOT (s_actual_column_type = s_expected_column_type)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_relation_name, s_column_name, s_expected_column_type, s_actual_column_type));
   END IF;
 END
 $$ LANGUAGE plpgsql
