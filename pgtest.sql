@@ -564,6 +564,32 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.assert_function_exists(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[] DEFAULT ARRAY[]::VARCHAR[], s_message TEXT DEFAULT 'Function "%1$s.%2$s(%3$s)" does not exist.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT pgtest.f_function_exists(s_schema_name, s_function_name, s_function_argument_types)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_function_name, array_to_string(s_function_argument_types, ', ')));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_function_does_not_exist(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[] DEFAULT ARRAY[]::VARCHAR[], s_message TEXT DEFAULT 'Function "%1$s.%2$s(%3$s)" exists.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (pgtest.f_function_exists(s_schema_name, s_function_name, s_function_argument_types)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_function_name, array_to_string(s_function_argument_types, ', ')));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 -------------
 -- MOCKING --
 -------------

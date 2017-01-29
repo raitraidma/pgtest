@@ -416,6 +416,28 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_function_exists()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_function_exists('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_function_does_not_exist()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_function_does_not_exist('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer']::VARCHAR[]);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_before_after()
   RETURNS void AS
 $$
