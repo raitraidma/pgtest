@@ -659,6 +659,21 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.assert_not_column_type(s_schema_name VARCHAR, s_relation_name VARCHAR, s_column_name VARCHAR, s_not_expected_column_type VARCHAR, s_message TEXT DEFAULT 'Column "%3$s" in table "%1$s.%2$s" expects not to be type of "%4$s", but it is.')
+  RETURNS void AS
+$$
+DECLARE
+  s_actual_column_type VARCHAR := pgtest.f_column_type(s_schema_name, s_relation_name, s_column_name);
+BEGIN
+  IF (s_actual_column_type = s_not_expected_column_type) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_relation_name, s_column_name, s_not_expected_column_type));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 -------------
 -- MOCKING --
 -------------

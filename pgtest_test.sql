@@ -473,6 +473,19 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_not_column_type()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_not_column_type('pgtest_test', 'test_table', 'id', 'character varying');
+  PERFORM pgtest.assert_not_column_type('pgtest_test', 'test_view', 'id', 'character varying');
+  PERFORM pgtest.assert_not_column_type('pgtest_test', 'test_materialized_view', 'id', 'character varying');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_before_after()
   RETURNS void AS
 $$

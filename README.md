@@ -80,6 +80,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_extension_exists(extension_name [, custom_error_message]);`
 * `pgtest.assert_extension_does_not_exist(extension_name [, custom_error_message]);`
 * `pgtest.assert_column_type(schema_name, relation_name, column_name, expected_column_type [, custom_error_message]);`
+* `pgtest.assert_not_column_type(schema_name, relation_name, column_name, not_expected_column_type [, custom_error_message]);`
 
 `expected_value` and `real_value` must be same type (base type or array).
 
@@ -87,7 +88,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 
 `function_argument_types` is array of argument types (e.g `ARRAY['character varying', 'integer']::VARCHAR[]`. Default value is `ARRAY[]::VARCHAR[]`).
 
-`expected_column_type` must be SQL name of a data type.
+`expected_column_type` and `not_expected_column_type` must be SQL name of a data type.
 
 ## Mocking
 * `pgtest.simple_mock(original_function_schema_name, original_function_name, function_arguments, mock_function_schema_name, mock_function_name)` - replaces original function with mock function. All parameters are `VARCHAR` type. `function_arguments` are function parameters separated by commas (just like usual function definition in Postgres).
