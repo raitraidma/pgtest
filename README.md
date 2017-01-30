@@ -106,3 +106,4 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * [plpgunit](https://github.com/mixerp/plpgunit)
 * [pgTAP](https://github.com/theory/pgtap)
 * [Dis](https://github.com/Imperium/Dis)
+* [Epic](https://github.com/brandonpayton/epictest)
