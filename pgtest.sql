@@ -310,6 +310,22 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_prepare_statement(s_statement text)
+  RETURNS text AS
+$$
+DECLARE
+  s_cleaned_statement TEXT := btrim(rtrim(s_statement, ';'));
+  s_match_1 TEXT := '^[[:space:]]*(SELECT|EXECUTE)[[:space:]]';
+  s_match_2 TEXT := '^[[:space:]]*(VALUES)[[:space:]]*\(';
+BEGIN
+  IF ((s_cleaned_statement ~* s_match_1) OR (s_cleaned_statement ~* s_match_2)) THEN
+    RETURN s_cleaned_statement;
+  END IF;
+  RETURN 'SELECT * FROM ' || s_cleaned_statement;
+END;
+$$ LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION pgtest.fails(s_message TEXT)
   RETURNS void AS
 $$
@@ -453,17 +469,24 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_query_equals(s_expected_recordset TEXT[][], s_sql_query TEXT, s_message TEXT DEFAULT 'Expected: %1$s. But was: %2$s.')
+CREATE OR REPLACE FUNCTION pgtest.assert_rows(s_expected_result_query TEXT, s_actual_result_query TEXT, s_message TEXT DEFAULT 'Expected row: %1$s. Actual row: %2$s.')
   RETURNS void AS
 $$
 DECLARE
-  s_actual_recordset TEXT[][];
+  s_expected_result_query TEXT := pgtest.f_prepare_statement(s_expected_result_query);
+  s_actual_result_query TEXT := pgtest.f_prepare_statement(s_actual_result_query);
+  s_error_messages TEXT := '';
+  r_record RECORD;
 BEGIN
-  EXECUTE format('SELECT pgtest.array_agg_mult(ARRAY[t.values]) FROM (
-                    SELECT pgtest.f_json_object_values_to_array(row_to_json(query)) AS values
-                    FROM (%s) query
-                  ) t;', s_sql_query) INTO s_actual_recordset;
-  PERFORM pgtest.assert_equals(s_expected_recordset, s_actual_recordset, s_message);
+  FOR r_record IN EXECUTE '(' || s_expected_result_query || ') EXCEPT (' || s_actual_result_query || ')' LOOP
+    s_error_messages := s_error_messages || format(s_message, r_record, '()') || E'\n';
+  END LOOP;
+
+  FOR r_record IN EXECUTE '(' || s_actual_result_query || ') EXCEPT (' || s_expected_result_query || ')'  LOOP
+    s_error_messages := s_error_messages || format(s_message, '()', r_record) || E'\n';
+  END LOOP;
+
+  PERFORM pgtest.assert_equals('', s_error_messages, btrim(s_error_messages));
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

@@ -205,23 +205,6 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_assert_query_equals_compares_resultset_against_correct_query()
-  RETURNS void AS
-$$
-BEGIN
-  PERFORM pgtest.assert_query_equals(ARRAY[
-    ARRAY['a','b'],
-    ARRAY['c','d']
-  ],
-  'SELECT ''a'', ''b''
-   UNION ALL
-   SELECT ''c'', ''d''
-  '
-  );
-END
-$$ LANGUAGE plpgsql
-  SECURITY DEFINER
-  SET search_path=pgtest_test, pg_temp;
 
 
 CREATE OR REPLACE FUNCTION pgtest_test.test_simple_mock_1_mock_changes_function_implementation()
@@ -494,15 +477,14 @@ BEGIN
     CREATE SCHEMA pgtest_test_hooks;
 
     CREATE TABLE pgtest_test_hooks.execution (
-      id INT
-    , type VARCHAR
+      type VARCHAR
     );
 
     CREATE OR REPLACE FUNCTION pgtest_test_hooks.before()
       RETURNS void AS
     $TEST$
     BEGIN
-      INSERT INTO pgtest_test_hooks.execution(id, type) VALUES (2, 'BEFORE');
+      INSERT INTO pgtest_test_hooks.execution(type) VALUES ('BEFORE');
     END
     $TEST$ LANGUAGE plpgsql
       SECURITY DEFINER
@@ -512,7 +494,7 @@ BEGIN
       RETURNS void AS
     $TEST$
     BEGIN
-      INSERT INTO pgtest_test_hooks.execution(id, type) VALUES (3, 'TEST');
+      INSERT INTO pgtest_test_hooks.execution(type) VALUES ('TEST');
     END
     $TEST$ LANGUAGE plpgsql
       SECURITY DEFINER
@@ -522,7 +504,7 @@ BEGIN
       RETURNS void AS
     $TEST$
     BEGIN
-      INSERT INTO pgtest_test_hooks.execution(id, type) VALUES (4, 'AFTER');
+      INSERT INTO pgtest_test_hooks.execution(type) VALUES ('AFTER');
     END
     $TEST$ LANGUAGE plpgsql
       SECURITY DEFINER
@@ -537,11 +519,89 @@ BEGIN
 
   PERFORM set_config('pgtest.test_rollback_enabled', 'true', false);
 
-  PERFORM pgtest.assert_query_equals(ARRAY[
-    ARRAY['2','BEFORE'],
-    ARRAY['3','TEST'],
-    ARRAY['4','AFTER']
-  ], 'SELECT id, type FROM pgtest_test_hooks.execution ORDER BY id ASC');
+  PERFORM pgtest.assert_rows(
+    $SQL$ VALUES ('BEFORE'), ('TEST'), ('AFTER') $SQL$
+  , $SQL$ SELECT type FROM pgtest_test_hooks.execution $SQL$
+  );
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_f_prepare_statement()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_equals('SELECT * FROM pgtest_test.test_table', pgtest.f_prepare_statement(' SELECT * FROM pgtest_test.test_table;'));
+  PERFORM pgtest.assert_equals('EXECUTE prepared_statement', pgtest.f_prepare_statement(' EXECUTE prepared_statement;'));
+  PERFORM pgtest.assert_equals('VALUES(''asd'', 2)', pgtest.f_prepare_statement(' VALUES(''asd'', 2);'));
+  PERFORM pgtest.assert_equals('VALUES (''asd'', 2)', pgtest.f_prepare_statement(' VALUES (''asd'', 2);'));
+  PERFORM pgtest.assert_equals('SELECT * FROM table_name', pgtest.f_prepare_statement(' table_name'));
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_rows_with_matching_rows_using_values_and_select()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_rows(
+    $SQL$ VALUES('a', 1),('b',2),('c',3) $SQL$,
+    $SQL$ SELECT 'c', 3 UNION ALL SELECT 'a', 1 UNION ALL SELECT 'b', 2 $SQL$
+  );
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_rows_with_matching_rows_using_execute_and_table()
+  RETURNS void AS
+$$
+BEGIN
+  BEGIN
+    CREATE TABLE pgtest_test.rows (
+      id INT
+    , value TEXT
+    );
+
+    INSERT INTO pgtest_test.rows(id, value) VALUES (1, 'a'), (2, 'b');
+
+    PREPARE prepared_statement AS SELECT 2, 'b' UNION ALL SELECT 1, 'a';
+
+    PERFORM pgtest.assert_rows(
+      $SQL$ pgtest_test.rows $SQL$,
+      $SQL$ EXECUTE prepared_statement $SQL$
+    );
+  EXCEPTION
+    WHEN OTHERS THEN NULL;
+  END;
+
+  DEALLOCATE prepared_statement;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_rows_with_some_non_matching_rows()
+  RETURNS void AS
+$$
+DECLARE
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_rows(
+      $SQL$ VALUES('a', 1),('b',2),('d',4) $SQL$,
+      $SQL$ SELECT 'c', 3 UNION SELECT 'a', 1 UNION SELECT 'e', 5 $SQL$
+    );
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'Some rows should not match');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

@@ -66,7 +66,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_false(boolean_value [, custom_error_message]);`
 * `pgtest.assert_null(value [, custom_error_message]);`
 * `pgtest.assert_not_null(value [, custom_error_message]);`
-* `pgtest.assert_query_equals(expected_recordset, sql_query [, custom_error_message])`
+* `pgtest.assert_rows(expected_result_query, actual_result_query [, custom_error_message])`
 * `pgtest.assert_table_exists(schema_name, table_name [, custom_error_message])`
 * `pgtest.assert_table_does_not_exist(schema_name, table_name [, custom_error_message])`
 * `pgtest.assert_view_exists(schema_name, view_name [, custom_error_message])`
@@ -84,7 +84,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 
 `expected_value` and `real_value` must be same type (base type or array).
 
-`expected_recordset` is array `TEXT[][]` (e.g `ARRAY[ARRAY['a', 'b'], ARRAY['c', 'd']]`) and `sql_query` is sql query as text (e.g `'SELECT ''a'', ''b'''`).
+`expected_result_query` and `actual_result_query` are sql queries (`SELECT`, `VALUES`, `EXECUTE` or table name).
 
 `function_argument_types` is array of argument types (e.g `ARRAY['character varying', 'integer']::VARCHAR[]`. Default value is `ARRAY[]::VARCHAR[]`).
 
