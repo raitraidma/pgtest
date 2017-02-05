@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/raitraidma/pgtest.svg?branch=master)](https://travis-ci.org/raitraidma/pgtest)
+
 # PgTest
 Testing in PostgreSQL. Tested with PostgreSQL 9.4.
 
