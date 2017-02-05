@@ -370,7 +370,10 @@ CREATE OR REPLACE FUNCTION pgtest.assert_equals(x_expected_value ANYELEMENT, x_a
   RETURNS void AS
 $$
 BEGIN
-  IF (NOT(x_expected_value = x_actual_value)) THEN
+  IF (NOT(x_expected_value = x_actual_value)
+      OR (x_expected_value IS NULL AND x_actual_value IS NOT NULL)
+      OR (x_expected_value IS NOT NULL AND x_actual_value IS NULL)
+  ) THEN
     PERFORM pgtest.fails(format(s_message, x_expected_value, x_actual_value));
   END IF;
 END

@@ -120,6 +120,42 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_text_with_null()
+  RETURNS void AS
+$$
+DECLARE
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_equals('some text'::TEXT, NULL);
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'Text is not equal to NULL.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_null_with_text()
+  RETURNS void AS
+$$
+DECLARE
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_equals(NULL, 'some text'::TEXT);
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'NULL is not equal to text.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_assert_equals_compares_different_text()
   RETURNS void AS
 $$
