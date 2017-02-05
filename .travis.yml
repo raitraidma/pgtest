@@ -1,0 +1,16 @@
+language: c
+
+services:
+  - postgresql
+
+addons:
+  postgresql: "9.4"
+
+before_script:
+  - chmod +x ./test.sh
+  - psql -U postgres -c 'CREATE DATABASE pgtest;'
+  - psql -d pgtest -U postgres < pgtest.sql
+  - psql -d pgtest -U postgres < pgtest_test.sql
+
+script:
+  - ./test.sh
