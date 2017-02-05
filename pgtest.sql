@@ -8,16 +8,6 @@ DROP SEQUENCE IF EXISTS pgtest.unique_id;
 CREATE SEQUENCE pgtest.unique_id CYCLE;
 
 
-DROP AGGREGATE IF EXISTS pgtest.array_agg_mult (ANYARRAY);
-
-
-CREATE AGGREGATE pgtest.array_agg_mult (ANYARRAY)  (
-  SFUNC    = array_cat
-, STYPE    = anyarray
-, INITCOND = '{}'
-);
-
-
 CREATE OR REPLACE FUNCTION pgtest.f_get_test_functions_in_schema(s_schema_name VARCHAR)
   RETURNS TABLE (
     function_name VARCHAR
@@ -65,28 +55,13 @@ $$ LANGUAGE sql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.f_get_current_setting(s_setting_name VARCHAR, s_default_value VARCHAR DEFAULT NULL)
-  RETURNS varchar AS
-$$
-BEGIN
-  RETURN current_setting(s_setting_name);
-EXCEPTION
-  WHEN OTHERS THEN
-    RETURN s_default_value;
-END
-$$ LANGUAGE plpgsql
-  SECURITY DEFINER
-  SET search_path=pgtest, pg_temp;
-
-
-CREATE OR REPLACE FUNCTION pgtest.f_run_test(s_schema_name VARCHAR, s_function_name VARCHAR)
+CREATE OR REPLACE FUNCTION pgtest.f_run_test(s_schema_name VARCHAR, s_function_name VARCHAR, b_rollback BOOLEAN DEFAULT TRUE)
   RETURNS varchar AS
 $$
 DECLARE
   s_returned_sqlstate    TEXT;
   s_message_text         TEXT;
   s_pg_exception_context TEXT;
-  s_test_rollback_enabled VARCHAR := pgtest.f_get_current_setting('pgtest.test_rollback_enabled', 'true');
 BEGIN
   IF (pgtest.f_function_exists(s_schema_name, 'before', ARRAY[]::VARCHAR[])) THEN
     EXECUTE 'SELECT ' || s_schema_name || '.before();';
@@ -98,7 +73,7 @@ BEGIN
     EXECUTE 'SELECT ' || s_schema_name || '.after();';
   END IF;
   
-  IF (s_test_rollback_enabled = 'true') THEN
+  IF (b_rollback) THEN
     RAISE EXCEPTION 'OK' USING ERRCODE = '40004';
   END IF;
   RETURN 'OK';

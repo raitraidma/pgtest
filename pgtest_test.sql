@@ -510,14 +510,10 @@ BEGIN
       SECURITY DEFINER
       SET search_path=pgtest_test_hooks, pg_temp;
 
-    PERFORM set_config('pgtest.test_rollback_enabled', 'false', false);
-
-    PERFORM pgtest.f_run_test('pgtest_test_hooks', 'test_test');
+    PERFORM pgtest.f_run_test('pgtest_test_hooks', 'test_test', FALSE);
   EXCEPTION
     WHEN OTHERS THEN NULL;
   END;
-
-  PERFORM set_config('pgtest.test_rollback_enabled', 'true', false);
 
   PERFORM pgtest.assert_rows(
     $SQL$ VALUES ('BEFORE'), ('TEST'), ('AFTER') $SQL$
@@ -606,6 +602,3 @@ END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
-
-
-SELECT pgtest.run_tests('pgtest_test');
