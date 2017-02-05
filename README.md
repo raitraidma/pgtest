@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/raitraidma/pgtest.svg?branch=master)](https://travis-ci.org/raitraidma/pgtest)
 
 # PgTest
-Testing in PostgreSQL. Tested with PostgreSQL 9.4.
+Testing in PostgreSQL for versions 9.4, 9.5 and 9.6.
 
 ## Installation
 Create database and execute `pgtest.sql`. This will create pgtest schema with functions that are used for testing.
