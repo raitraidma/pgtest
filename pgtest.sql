@@ -360,6 +360,7 @@ DECLARE
   s_test_result VARCHAR;
   i_test_count INT := 0;
   i_error_count INT := 0;
+  s_failed_tests TEXT[];
 BEGIN
   t_start_time := clock_timestamp();
 
@@ -373,11 +374,17 @@ BEGIN
       RAISE NOTICE '%', s_test_result;
       IF (s_test_result <> 'OK') THEN
         i_error_count := i_error_count + 1;
+        s_failed_tests := array_append(s_failed_tests, s_schema_name || '.' || s_function_name);
       END IF;
     END LOOP;
   END LOOP;
 
   t_end_time := clock_timestamp();
+
+  IF (array_length(s_failed_tests, 1) > 0) THEN
+    RAISE NOTICE E'Failed tests:\n%', array_to_string(s_failed_tests, E'\n');
+  END IF;
+
   RAISE NOTICE 'Executed % tests of which % failed in %', i_test_count, i_error_count, (t_end_time - t_start_time);
   RAISE EXCEPTION 'PgTest ended.';
 EXCEPTION
