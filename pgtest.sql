@@ -285,6 +285,43 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_mock_or_spy(s_type VARCHAR, s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[], s_mock_function_schema_name VARCHAR DEFAULT NULL, s_mock_function_name VARCHAR DEFAULT NULL)
+  RETURNS varchar AS
+$$
+DECLARE
+  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
+  j_original_function_description JSON;
+BEGIN
+  j_original_function_description := pgtest.f_get_function_description(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
+  IF (j_original_function_description IS NULL) THEN
+    RAISE EXCEPTION 'Could not find function to spy: %.%(%)', s_original_function_schema_name, s_original_function_name, array_to_string(s_function_argument_types, ',');
+  END IF;
+
+  CREATE TEMP TABLE IF NOT EXISTS temp_pgtest_mock(
+    mock_id VARCHAR UNIQUE
+  , times_called INT DEFAULT 0
+  , called_with_arguments JSON DEFAULT '[]'::JSON
+  ) ON COMMIT DROP;
+
+  INSERT INTO temp_pgtest_mock(mock_id) VALUES (s_mock_id);
+
+  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
+
+  IF (s_type = 'SPY') THEN
+    PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_original_function_schema_name, s_original_function_name || '_' || s_mock_id);
+  ELSIF (s_type = 'MOCK') THEN
+    PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_mock_function_schema_name, s_mock_function_name);
+  ELSE
+    RAISE EXCEPTION 'Unknown type: %', s_type;
+  END IF;
+
+  RETURN s_mock_id;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_prepare_statement(s_statement text)
   RETURNS text AS
 $$
@@ -675,23 +712,14 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
--------------
--- MOCKING --
--------------
-
-CREATE OR REPLACE FUNCTION pgtest.simple_mock(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_arguments VARCHAR, s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
-  RETURNS void AS
+------------------
+-- MOCK AND SPY --
+------------------
+CREATE OR REPLACE FUNCTION pgtest.spy(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[])
+  RETURNS varchar AS
 $$
-DECLARE
-  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
 BEGIN
-  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
-
-  EXECUTE 'ALTER FUNCTION ' || s_mock_function_schema_name || '.' || s_mock_function_name || '(' || s_function_arguments || ') RENAME TO ' || s_original_function_name ||';';
-
-  IF (s_mock_function_schema_name <> s_original_function_schema_name) THEN
-    EXECUTE 'ALTER FUNCTION ' || s_mock_function_schema_name || '.' || s_original_function_name || '(' || s_function_arguments || ') SET SCHEMA ' || s_original_function_schema_name || ';';
-  END IF;
+  RETURN pgtest.f_mock_or_spy('SPY', s_original_function_schema_name, s_original_function_name, s_function_argument_types);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -701,35 +729,15 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION pgtest.mock(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[], s_mock_function_schema_name VARCHAR, s_mock_function_name VARCHAR)
   RETURNS varchar AS
 $$
-DECLARE
-  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
-  j_original_function_description JSON;
 BEGIN
-  j_original_function_description := pgtest.f_get_function_description(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
-  IF (j_original_function_description IS NULL) THEN
-    RAISE EXCEPTION 'Could not find function to mock: %.%(%)', s_original_function_schema_name, s_original_function_name, array_to_string(s_function_argument_types, ',');
-  END IF;
-
-  CREATE TEMP TABLE IF NOT EXISTS temp_pgtest_mock(
-    mock_id VARCHAR UNIQUE
-  , times_called INT DEFAULT 0
-  , called_with_arguments JSON DEFAULT '[]'::JSON
-  ) ON COMMIT DROP;
-
-  INSERT INTO temp_pgtest_mock(mock_id) VALUES (s_mock_id);
-
-  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
-
-  PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_mock_function_schema_name, s_mock_function_name);
-
-  RETURN s_mock_id;
+  RETURN pgtest.f_mock_or_spy('MOCK', s_original_function_schema_name, s_original_function_name, s_function_argument_types, s_mock_function_schema_name, s_mock_function_name);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_mock_called(s_mock_id VARCHAR, i_expected_times_called INT DEFAULT 1, s_message TEXT DEFAULT 'Function expected to be called %1$s time(s). But it was called %2$s time(s).')
+CREATE OR REPLACE FUNCTION pgtest.assert_called(s_mock_id VARCHAR, i_expected_times_called INT DEFAULT 1, s_message TEXT DEFAULT 'Function expected to be called %1$s time(s). But it was called %2$s time(s).')
   RETURNS void AS
 $$
 DECLARE
@@ -753,7 +761,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest.assert_mock_called_with_arguments(s_mock_id VARCHAR, s_expected_arguments TEXT[], i_call_time INT, s_message TEXT DEFAULT 'Function expected to be called %1$s. time with arguments %2$s. But they were %3$s.')
+CREATE OR REPLACE FUNCTION pgtest.assert_called_with_arguments(s_mock_id VARCHAR, s_expected_arguments TEXT[], i_call_time INT, s_message TEXT DEFAULT 'Function expected to be called %1$s. time with arguments %2$s. But they were %3$s.')
   RETURNS void AS
 $$
 DECLARE

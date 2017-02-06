@@ -241,14 +241,12 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-
-
-CREATE OR REPLACE FUNCTION pgtest_test.test_simple_mock_1_mock_changes_function_implementation()
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_1_mock_changes_function_implementation()
   RETURNS void AS
 $$
 BEGIN
   PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
-  PERFORM pgtest.simple_mock('pgtest_test', 'f_test_function', 'character varying, integer, text', 'pgtest_test', 'f_test_function_mock');
+  PERFORM pgtest.mock('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[], 'pgtest_test', 'f_test_function_mock');
   PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
 END
 $$ LANGUAGE plpgsql
@@ -256,7 +254,7 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_simple_mock_2_mock_is_rolled_back_after_previous_test()
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_2_mock_is_rolled_back_after_previous_test()
   RETURNS void AS
 $$
 BEGIN
@@ -278,7 +276,7 @@ BEGIN
   PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
   PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
   PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
-  PERFORM pgtest.assert_mock_called(s_mock_id, 3);
+  PERFORM pgtest.assert_called(s_mock_id, 3);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -296,9 +294,9 @@ BEGIN
   PERFORM pgtest_test.f_test_function('b');
   PERFORM pgtest_test.f_test_function('c');
   PERFORM pgtest_test.f_test_function('d');
-  PERFORM pgtest.assert_mock_called_with_arguments(s_mock_id, ARRAY['b', '1', 'def'], 1);
-  PERFORM pgtest.assert_mock_called_with_arguments(s_mock_id, ARRAY['c', '1', 'def'], 2);
-  PERFORM pgtest.assert_mock_called_with_arguments(s_mock_id, ARRAY['d', '1', 'def'], 3);
+  PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['b', '1', 'def'], 1);
+  PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['c', '1', 'def'], 2);
+  PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['d', '1', 'def'], 3);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -317,11 +315,88 @@ BEGIN
     PERFORM pgtest_test.f_test_function('a');
     PERFORM pgtest_test.f_test_function('b');
     PERFORM pgtest_test.f_test_function('c');
-    PERFORM pgtest.assert_mock_called_with_arguments(s_mock_id, ARRAY['d'], 2);
+    PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['d'], 2);
   EXCEPTION
     WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
-  PERFORM pgtest.assert_true(b_pass, 'assert_mock_called_with_arguments should throw exception, because arguments do not match.');
+  PERFORM pgtest.assert_true(b_pass, 'assert_called_with_arguments should throw exception, because arguments do not match.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_function_implementation_does_not_change()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_and_assert_call_times()
+  RETURNS void AS
+$$
+DECLARE
+  s_spy_id VARCHAR;
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  s_spy_id := pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_called(s_spy_id, 4);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_and_assert_call_arguments()
+  RETURNS void AS
+$$
+DECLARE
+  s_spy_id VARCHAR;
+BEGIN
+  PERFORM pgtest_test.f_test_function('a');
+  s_spy_id := pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+  PERFORM pgtest_test.f_test_function('b');
+  PERFORM pgtest_test.f_test_function('c');
+  PERFORM pgtest_test.f_test_function('d');
+  PERFORM pgtest_test.f_test_function('e');
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['b', '1', 'def'], 1);
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['c', '1', 'def'], 2);
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['d', '1', 'def'], 3);
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['e', '1', 'def'], 4);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_and_assert_wrong_call_arguments()
+  RETURNS void AS
+$$
+DECLARE
+  s_spy_id VARCHAR;
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    s_spy_id := pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+    PERFORM pgtest_test.f_test_function('a');
+    PERFORM pgtest_test.f_test_function('b');
+    PERFORM pgtest_test.f_test_function('c');
+    PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['d'], 2);
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'assert_called_with_arguments should throw exception, because arguments do not match.');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
