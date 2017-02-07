@@ -322,6 +322,24 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.f_get_called_times(s_mock_id VARCHAR)
+  RETURNS int AS
+$$
+DECLARE
+  i_actual_times_called INT;
+BEGIN
+  SELECT times_called
+  INTO i_actual_times_called
+  FROM temp_pgtest_mock
+  WHERE mock_id = s_mock_id;
+
+  RETURN i_actual_times_called;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest.f_prepare_statement(s_statement text)
   RETURNS text AS
 $$
@@ -748,19 +766,29 @@ CREATE OR REPLACE FUNCTION pgtest.assert_called(s_mock_id VARCHAR, i_expected_ti
   RETURNS void AS
 $$
 DECLARE
-  i_actual_times_called INT;
+  i_actual_times_called INT := pgtest.f_get_called_times(s_mock_id);
 BEGIN
-  SELECT times_called
-  INTO i_actual_times_called
-  FROM temp_pgtest_mock
-  WHERE mock_id = s_mock_id;
-
   IF (i_actual_times_called IS NULL) THEN
     PERFORM pgtest.fails(format('Mock with id "%" not found.', s_mock_id));
   ELSIF (i_expected_times_called < 0) THEN
     PERFORM pgtest.fails(format('Expected times called must be >= 0 not %.', i_expected_times_called));
   ELSIF (i_expected_times_called <> i_actual_times_called) THEN
     PERFORM pgtest.fails(format(s_message, i_expected_times_called, i_actual_times_called));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_called_at_least_once(s_mock_id VARCHAR, s_message TEXT DEFAULT 'Function expected to be called at least once.')
+  RETURNS void AS
+$$
+DECLARE
+  i_actual_times_called INT := pgtest.f_get_called_times(s_mock_id);
+BEGIN
+  IF (i_actual_times_called = 0) THEN
+    PERFORM pgtest.fails(s_message);
   END IF;
 END
 $$ LANGUAGE plpgsql

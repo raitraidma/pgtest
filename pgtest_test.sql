@@ -283,6 +283,24 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_assert_called_at_least_once()
+  RETURNS void AS
+$$
+DECLARE
+  s_mock_id VARCHAR;
+BEGIN
+  PERFORM pgtest_test.f_test_function('a');
+  s_mock_id := pgtest.mock('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[], 'pgtest_test', 'f_test_function_mock');
+  PERFORM pgtest_test.f_test_function('a');
+  PERFORM pgtest_test.f_test_function('a');
+  PERFORM pgtest_test.f_test_function('a');
+  PERFORM pgtest.assert_called_at_least_once(s_mock_id);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_assert_call_arguments()
   RETURNS void AS
 $$
