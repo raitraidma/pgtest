@@ -424,6 +424,20 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
+
+CREATE OR REPLACE FUNCTION pgtest.run_tests_like(s_schema_name_pattern VARCHAR)
+  RETURNS int AS
+$$
+  SELECT pgtest.run_tests(array_agg(schema_name)) FROM (
+    SELECT schema_name::VARCHAR AS schema_name
+    FROM information_schema.schemata
+    WHERE schema_name LIKE s_schema_name_pattern
+    ORDER BY schema_name
+  ) t
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
 ----------------
 -- ASSERTIONS --
 ----------------

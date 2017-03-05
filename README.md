@@ -48,6 +48,8 @@ Run tests:
 SELECT pgtest.run_tests('test');
 -- OR
 SELECT pgtest.run_tests(ARRAY['test_schema1','test_schema2']); -- Run tests from multiple schemas.
+-- OR
+SELECT pgtest.run_tests_like('test_schema%'); -- Run tests whose schema is LIKE 'test_schema%'
 ```
 
 Result is number of messages that failed. Raised messages show more specific info about tests - what tests ran, how many failed, what was the cause and how long it took.
