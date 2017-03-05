@@ -23,6 +23,22 @@ $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_array_param(s_input VARCHAR[])
+  RETURNS int AS
+$$
+  SELECT array_length(s_input, 1);
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_array_param_mock(s_input VARCHAR[])
+  RETURNS int AS
+$$
+  SELECT array_length(s_input, 1) + 10;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
 CREATE TABLE pgtest_test.test_table (
   id INT
 );
@@ -259,6 +275,19 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_mock_2_mock_is_rolled_back_after_pre
 $$
 BEGIN
   PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_spy_accept_array_parameters()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_equals(2, pgtest_test.f_test_function_array_param(ARRAY['a', 'b']::VARCHAR[]));
+  PERFORM pgtest.mock('pgtest_test', 'f_test_function_array_param', ARRAY['character varying[]']::VARCHAR[], 'pgtest_test', 'f_test_function_array_param_mock');
+  PERFORM pgtest.assert_equals(12, pgtest_test.f_test_function_array_param( ARRAY['a', 'b']::VARCHAR[]));
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

@@ -115,10 +115,17 @@ $$
       , r.security_type
       , p.parameter_mode::VARCHAR
       , p.parameter_name::VARCHAR
-      , p.data_type::VARCHAR AS parameter_data_type
+      , (CASE
+          WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
+          ELSE p.data_type::VARCHAR
+      END) AS parameter_data_type
       , p.parameter_default::VARCHAR
       FROM information_schema.routines r
       LEFT JOIN information_schema.parameters p ON (r.specific_catalog = p.specific_catalog AND r.specific_schema = p.specific_schema AND r.specific_name = p.specific_name)
+      LEFT JOIN information_schema.element_types et ON (
+         (p.specific_catalog, p.specific_schema, p.specific_name, 'ROUTINE', p.dtd_identifier)
+       = (et.object_catalog, et.object_schema, et.object_name, et.object_type, et.collection_type_identifier)
+      )
       WHERE r.routine_schema = s_schema_name
         AND r.routine_name = s_function_name
         AND r.routine_type = 'FUNCTION'
