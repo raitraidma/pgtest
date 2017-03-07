@@ -735,7 +735,6 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_f_prepare_statement()
 $$
 BEGIN
   PERFORM pgtest.assert_equals('SELECT * FROM pgtest_test.test_table', pgtest.f_prepare_statement(' SELECT * FROM pgtest_test.test_table;'));
-  PERFORM pgtest.assert_equals('EXECUTE prepared_statement', pgtest.f_prepare_statement(' EXECUTE prepared_statement;'));
   PERFORM pgtest.assert_equals('VALUES(''asd'', 2)', pgtest.f_prepare_statement(' VALUES(''asd'', 2);'));
   PERFORM pgtest.assert_equals('VALUES (''asd'', 2)', pgtest.f_prepare_statement(' VALUES (''asd'', 2);'));
   PERFORM pgtest.assert_equals('SELECT * FROM table_name', pgtest.f_prepare_statement(' table_name'));
@@ -759,29 +758,21 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
-CREATE OR REPLACE FUNCTION pgtest_test.test_assert_rows_with_matching_rows_using_execute_and_table()
+CREATE OR REPLACE FUNCTION pgtest_test.test_assert_rows_with_matching_rows_using_values_and_table()
   RETURNS void AS
 $$
 BEGIN
-  BEGIN
-    CREATE TABLE pgtest_test.rows (
-      id INT
-    , value TEXT
-    );
+  CREATE TABLE pgtest_test.rows (
+    id INT
+  , value TEXT
+  );
 
-    INSERT INTO pgtest_test.rows(id, value) VALUES (1, 'a'), (2, 'b');
+  INSERT INTO pgtest_test.rows(id, value) VALUES (1, 'a'), (2, 'b');
 
-    PREPARE prepared_statement AS SELECT 2, 'b' UNION ALL SELECT 1, 'a';
-
-    PERFORM pgtest.assert_rows(
-      $SQL$ pgtest_test.rows $SQL$,
-      $SQL$ EXECUTE prepared_statement $SQL$
-    );
-  EXCEPTION
-    WHEN OTHERS THEN NULL;
-  END;
-
-  DEALLOCATE prepared_statement;
+  PERFORM pgtest.assert_rows(
+    $SQL$ pgtest_test.rows $SQL$,
+    $SQL$ VALUES(2, 'b'), (1, 'a') $SQL$
+  );
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

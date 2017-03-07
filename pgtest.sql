@@ -354,7 +354,7 @@ CREATE OR REPLACE FUNCTION pgtest.f_prepare_statement(s_statement text)
 $$
 DECLARE
   s_cleaned_statement TEXT := btrim(rtrim(s_statement, ';'));
-  s_match_1 TEXT := '^[[:space:]]*(SELECT|EXECUTE)[[:space:]]';
+  s_match_1 TEXT := '^[[:space:]]*(SELECT)[[:space:]]';
   s_match_2 TEXT := '^[[:space:]]*(VALUES)[[:space:]]*\(';
 BEGIN
   IF ((s_cleaned_statement ~* s_match_1) OR (s_cleaned_statement ~* s_match_2)) THEN
@@ -545,7 +545,7 @@ BEGIN
     s_error_messages := s_error_messages || format(s_message, r_record, '()') || E'\n';
   END LOOP;
 
-  FOR r_record IN EXECUTE '(' || s_actual_result_query || ') EXCEPT (' || s_expected_result_query || ')'  LOOP
+  FOR r_record IN EXECUTE '(' || s_actual_result_query || ') EXCEPT (' || s_expected_result_query || ')' LOOP
     s_error_messages := s_error_messages || format(s_message, '()', r_record) || E'\n';
   END LOOP;
 
