@@ -39,6 +39,32 @@ $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_returns_table()
+RETURNS TABLE (
+  id BIGINT
+, name VARCHAR
+, groups INT[]
+) AS $$
+  SELECT 1::BIGINT, 'name1', ARRAY[1,2]::INT[]
+  UNION ALL
+  SELECT 2::BIGINT, 'name2', ARRAY[3,4]::INT[]
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_returns_table_mock()
+RETURNS TABLE (
+  id BIGINT
+, name VARCHAR
+, groups INT[]
+) AS $$
+  SELECT 10::BIGINT, 'name10', ARRAY[10,20]::INT[]
+  UNION ALL
+  SELECT 20::BIGINT, 'name20', ARRAY[30,40]::INT[]
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
 CREATE TABLE pgtest_test.test_table (
   id INT
 );
@@ -367,6 +393,27 @@ BEGIN
     WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
   PERFORM pgtest.assert_true(b_pass, 'assert_called_with_arguments should throw exception, because arguments do not match.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_function_without_parameters_returns_table()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_rows(
+    $SQL$ VALUES (1::BIGINT, 'name1', ARRAY[1,2]::INT[]), (2::BIGINT, 'name2', ARRAY[3,4]::INT[]) $SQL$,
+    $SQL$ SELECT * FROM pgtest_test.f_test_function_returns_table() $SQL$
+  );
+
+  PERFORM pgtest.mock('pgtest_test', 'f_test_function_returns_table', ARRAY[]::VARCHAR[], 'pgtest_test', 'f_test_function_returns_table_mock');
+
+  PERFORM pgtest.assert_rows(
+    $SQL$ VALUES (10::BIGINT, 'name10', ARRAY[10,20]::INT[]), (20::BIGINT, 'name20', ARRAY[30,40]::INT[]) $SQL$,
+    $SQL$ SELECT * FROM pgtest_test.f_test_function_returns_table() $SQL$
+  );
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

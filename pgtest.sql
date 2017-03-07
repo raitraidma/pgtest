@@ -103,10 +103,10 @@ $$
   ELSE 'TABLE (' || (array_to_string((array_agg(f.parameter_name || ' ' || f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'OUT')), ',')) || ')'
     END) AS routine_data_type
     , f.security_type
-    , array_agg(f.parameter_mode) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_modes
-    , array_agg(f.parameter_name) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_names
-    , array_agg(f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_data_types
-    , array_agg(f.parameter_default) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_defaults
+    , coalesce(array_agg(f.parameter_mode) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_modes
+    , coalesce(array_agg(f.parameter_name) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_names
+    , coalesce(array_agg(f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_data_types
+    , coalesce(array_agg(f.parameter_default) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_defaults
     FROM (
       SELECT
         r.specific_catalog
@@ -142,10 +142,7 @@ $$
     , f.routine_name
     , f.routine_data_type
     , f.security_type
-  ) fp WHERE (CASE
-    WHEN array_length(s_function_argument_types, 1) IS NULL THEN fp.parameter_data_types IS NULL
-    ELSE fp.parameter_data_types = s_function_argument_types
-  END);
+  ) fp WHERE fp.parameter_data_types = s_function_argument_types;
 $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
@@ -213,7 +210,7 @@ DECLARE
   s_parameter_defaults VARCHAR[];
   i_position INT;
 BEGIN
-    SELECT
+  SELECT
     array_agg(f2.parameter_mode) AS parameter_modes
   , array_agg(f2.parameter_name) AS parameter_names
   , array_agg(f2.parameter_data_type) AS parameter_data_types
@@ -257,6 +254,8 @@ DECLARE
 BEGIN
   IF ((j_original_function_description->>'routine_data_type') = 'void') THEN
     s_call_method := 'PERFORM';
+  ELSIF ((j_original_function_description->>'routine_data_type') LIKE 'TABLE%') THEN
+    s_call_method := 'RETURN QUERY SELECT * FROM';
   END IF;
 
   EXECUTE format('CREATE FUNCTION %1$s.%2$s(%3$s)
