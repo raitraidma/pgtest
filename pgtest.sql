@@ -18,7 +18,7 @@ $$
   WHERE routine_schema = s_schema_name
     AND routine_type = 'FUNCTION'
     AND data_type = 'void'
-    AND routine_name LIKE 'test_%'
+    AND routine_name ~* 'test_.*'
   ORDER BY routine_name ASC;
 $$ LANGUAGE sql
   SECURITY DEFINER
@@ -845,6 +845,27 @@ BEGIN
   END IF;
 END
 $$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.coverage(s_function_schemas VARCHAR[], s_test_schemas VARCHAR[])
+RETURNS TABLE (
+  schema_name VARCHAR
+, function_name VARCHAR
+, is_covered BOOLEAN
+) AS $$
+  SELECT
+    fun_n.nspname::VARCHAR AS schema_name
+  , fun_p.proname::VARCHAR AS function_name
+  , count(test_n.nspname) > 0 AS is_covered
+  FROM pg_proc fun_p
+  JOIN pg_namespace fun_n ON fun_n.oid = fun_p.pronamespace
+  LEFT JOIN pg_proc test_p ON (test_p.proname ~* 'test_.*' AND test_p.prosrc ~* ('.*' || fun_p.proname || '\s*\(.*'))
+  LEFT JOIN pg_namespace test_n ON (test_n.nspname = ANY(s_test_schemas) AND test_n.oid = test_p.pronamespace)
+  WHERE fun_n.nspname = ANY(s_function_schemas)
+  GROUP BY fun_n.nspname, fun_p.proname
+$$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 

@@ -798,3 +798,59 @@ END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_coverage()
+  RETURNS void AS
+$$
+BEGIN
+  CREATE SCHEMA pgtest_test_functions;
+  
+  CREATE OR REPLACE FUNCTION pgtest_test_functions.covered()
+    RETURNS void AS
+  $TEST$
+  BEGIN
+  END
+  $TEST$ LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path=pgtest_test_functions, pg_temp;
+  
+  CREATE OR REPLACE FUNCTION pgtest_test_functions.not_covered()
+    RETURNS void AS
+  $TEST$
+  BEGIN
+  END
+  $TEST$ LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path=pgtest_test_functions, pg_temp;
+
+  CREATE SCHEMA pgtest_test_function_tests;
+
+  CREATE OR REPLACE FUNCTION pgtest_test_function_tests.test_covered_function()
+    RETURNS void AS
+  $TEST$
+  BEGIN
+    PERFORM pgtest_test_functions.covered();
+  END
+  $TEST$ LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path=pgtest_test_function_tests, pg_temp;
+
+  CREATE OR REPLACE FUNCTION pgtest_test_function_tests.not_covered_function()
+    RETURNS void AS
+  $TEST$
+  BEGIN
+    PERFORM pgtest_test_functions.not_covered();
+  END
+  $TEST$ LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path=pgtest_test_function_tests, pg_temp;
+
+  PERFORM pgtest.assert_rows(
+    $SQL$ VALUES('pgtest_test_functions', 'covered', TRUE), ('pgtest_test_functions', 'not_covered', FALSE) $SQL$,
+    $SQL$ SELECT * FROM pgtest.coverage(ARRAY['pgtest_test_functions']::VARCHAR[], ARRAY['pgtest_test_function_tests']::VARCHAR[]) $SQL$
+  );
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
