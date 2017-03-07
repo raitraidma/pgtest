@@ -98,12 +98,15 @@ $$
     SELECT
       f.routine_schema
     , f.routine_name
-    , f.routine_data_type
+    , (CASE
+  WHEN f.routine_data_type <> 'record' THEN f.routine_data_type
+  ELSE 'TABLE (' || (array_to_string((array_agg(f.parameter_name || ' ' || f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'OUT')), ',')) || ')'
+    END) AS routine_data_type
     , f.security_type
-    , array_agg(f.parameter_mode) AS parameter_modes
-    , array_agg(f.parameter_name) AS parameter_names
-    , array_agg(f.parameter_data_type) AS parameter_data_types
-    , array_agg(f.parameter_default) AS parameter_defaults
+    , array_agg(f.parameter_mode) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_modes
+    , array_agg(f.parameter_name) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_names
+    , array_agg(f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_data_types
+    , array_agg(f.parameter_default) FILTER (WHERE f.parameter_mode = 'IN') AS parameter_defaults
     FROM (
       SELECT
         r.specific_catalog
@@ -139,9 +142,9 @@ $$
     , f.routine_name
     , f.routine_data_type
     , f.security_type
-  ) fp WHERE fp.parameter_data_types = (CASE
-    WHEN array_length(s_function_argument_types, 1) IS NULL THEN ARRAY[NULL]::VARCHAR[]
-    ELSE s_function_argument_types
+  ) fp WHERE (CASE
+    WHEN array_length(s_function_argument_types, 1) IS NULL THEN fp.parameter_data_types IS NULL
+    ELSE fp.parameter_data_types = s_function_argument_types
   END);
 $$ LANGUAGE sql
   SECURITY DEFINER
