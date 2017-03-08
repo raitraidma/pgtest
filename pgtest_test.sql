@@ -39,6 +39,38 @@ $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_udt_param(s_table_name information_schema.columns.table_name%TYPE)
+  RETURNS information_schema.columns.table_name%TYPE AS
+$$
+  SELECT s_table_name;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_udt_param_mock(s_table_name information_schema.columns.table_name%TYPE)
+  RETURNS information_schema.columns.table_name%TYPE AS
+$$
+  SELECT s_table_name;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_array_param_and_array_return(s_input VARCHAR[])
+  RETURNS VARCHAR[] AS
+$$
+  SELECT s_input;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_array_param_and_array_return_mock(s_input VARCHAR[])
+  RETURNS VARCHAR[] AS
+$$
+  SELECT s_input;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
 CREATE OR REPLACE FUNCTION pgtest_test.f_test_function_returns_table()
 RETURNS TABLE (
   id BIGINT
@@ -414,6 +446,28 @@ BEGIN
     $SQL$ VALUES (10::BIGINT, 'name10', ARRAY[10,20]::INT[]), (20::BIGINT, 'name20', ARRAY[30,40]::INT[]) $SQL$,
     $SQL$ SELECT * FROM pgtest_test.f_test_function_returns_table() $SQL$
   );
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_function_with_udt_param_and_return_type()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.mock('pgtest_test', 'f_test_function_udt_param', ARRAY['information_schema.sql_identifier']::VARCHAR[], 'pgtest_test', 'f_test_function_udt_param_mock');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_function_with_array_param_and_array_return()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.mock('pgtest_test', 'f_test_function_array_param_and_array_return', ARRAY['character varying[]']::VARCHAR[], 'pgtest_test', 'f_test_function_array_param_and_array_return_mock');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

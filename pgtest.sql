@@ -114,13 +114,17 @@ $$
       , r.specific_name
       , r.routine_schema
       , r.routine_name
-      , r.data_type AS routine_data_type
+      , (CASE
+          WHEN r.data_type = 'ARRAY' THEN ret.data_type::VARCHAR || '[]'
+          WHEN r.data_type = 'USER-DEFINED' THEN r.type_udt_schema || '.' || r.type_udt_name
+          ELSE r.data_type
+      END) AS routine_data_type
       , r.security_type
       , p.parameter_mode::VARCHAR
       , p.parameter_name::VARCHAR
       , (CASE
           WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
-          WHEN p.data_type = 'USER-DEFINED' THEN p.udt_schema|| '.' || p.udt_name
+          WHEN p.data_type = 'USER-DEFINED' THEN p.udt_schema || '.' || p.udt_name
           ELSE p.data_type::VARCHAR
       END) AS parameter_data_type
       , p.parameter_default::VARCHAR
@@ -129,6 +133,10 @@ $$
       LEFT JOIN information_schema.element_types et ON (
          (p.specific_catalog, p.specific_schema, p.specific_name, 'ROUTINE', p.dtd_identifier)
        = (et.object_catalog, et.object_schema, et.object_name, et.object_type, et.collection_type_identifier)
+      )
+      LEFT JOIN information_schema.element_types ret ON (
+         (r.specific_catalog, r.specific_schema, r.specific_name, 'ROUTINE', r.dtd_identifier)
+       = (ret.object_catalog, ret.object_schema, ret.object_name, ret.object_type, ret.collection_type_identifier)
       )
       WHERE r.routine_schema = s_schema_name
         AND r.routine_name = s_function_name
