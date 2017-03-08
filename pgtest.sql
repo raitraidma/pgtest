@@ -120,6 +120,7 @@ $$
       , p.parameter_name::VARCHAR
       , (CASE
           WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
+          WHEN p.data_type = 'USER-DEFINED' THEN p.udt_schema|| '.' || p.udt_name
           ELSE p.data_type::VARCHAR
       END) AS parameter_data_type
       , p.parameter_default::VARCHAR
