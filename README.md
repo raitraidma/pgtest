@@ -105,6 +105,14 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `before()` - runs before every test that's in the same schema.
 * `after()` - runs after every test that's in the same schema.
 
+## Coverage
+Checks if function is mentioned (could not detect, if it is actually called) in test function.
+* `pgtest.coverage(function_schemas, test_schemas)` - `function_schemas` is `VARCHAR[]` and tells what schemas contain functions which existence in tests we want to check. `test_schemas` is `VARCHAR[]` and tells what schemas contain test functions.
+```sql
+-- Example:
+SELECT * FROM pgtest.coverage(ARRAY['public']::VARCHAR[], ARRAY['tests']::VARCHAR[]);
+```
+
 ## Alternatives
 * [PGUnit 1](http://en.dklab.ru/lib/dklab_pgunit/)
 * [PGUnit 2](https://github.com/adrianandrei-ca/pgunit)
