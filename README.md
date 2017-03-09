@@ -113,6 +113,9 @@ Checks if function is mentioned (could not detect, if it is actually called) in 
 SELECT * FROM pgtest.coverage(ARRAY['public']::VARCHAR[], ARRAY['tests']::VARCHAR[]);
 ```
 
+## Limitations
+* By default, function's name max length is 63 chars in PostgreSQL. If name is longer, then it will be truncated to 63 chars. This means if you have 2 functions with same parameters and where first 63 chars of the name are the same, then the second function will replace the first one.
+
 ## Alternatives
 * [PGUnit 1](http://en.dklab.ru/lib/dklab_pgunit/)
 * [PGUnit 2](https://github.com/adrianandrei-ca/pgunit)
