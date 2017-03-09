@@ -908,3 +908,31 @@ END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_remove_table_fk_constraints()
+  RETURNS void AS
+$$
+BEGIN
+  CREATE SCHEMA pgtest_test_tables;
+
+  CREATE TABLE pgtest_test_tables.parent (
+    id INT
+  , CONSTRAINT pk_parent PRIMARY KEY(id)
+  );
+
+  CREATE TABLE pgtest_test_tables.child (
+    id INT
+  , pid INT
+  , CONSTRAINT pk_child PRIMARY KEY(id)
+  , CONSTRAINT fk_child_parent FOREIGN KEY(pid) REFERENCES pgtest_test_tables.parent (id)
+  );
+
+  PERFORM pgtest.assert_table_has_fk('pgtest_test_tables', 'child', 'fk_child_parent');
+  PERFORM pgtest.remove_table_fk_constraints('pgtest_test_tables', 'child');
+  PERFORM pgtest.assert_table_has_not_fk('pgtest_test_tables', 'child', 'fk_child_parent');
+  
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;

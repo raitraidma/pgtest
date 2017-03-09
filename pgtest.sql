@@ -769,6 +769,42 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest.assert_table_has_fk(s_schema_name VARCHAR, s_table_name VARCHAR, s_constraint_name VARCHAR, s_message TEXT DEFAULT 'Table "%1$s.%2$s" expects to have foreign key "%3$s", but it has not.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT EXISTS (SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_type = 'FOREIGN KEY'
+      AND table_schema = s_schema_name 
+      AND table_name = s_table_name
+      AND constraint_name = s_constraint_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_constraint_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_table_has_not_fk(s_schema_name VARCHAR, s_table_name VARCHAR, s_constraint_name VARCHAR, s_message TEXT DEFAULT 'Table "%1$s.%2$s" expects not to have foreign key "%3$s", but it has.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (EXISTS (SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_type = 'FOREIGN KEY'
+      AND table_schema = s_schema_name 
+      AND table_name = s_table_name
+      AND constraint_name = s_constraint_name)) THEN
+    PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_constraint_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
 ------------------
 -- MOCK AND SPY --
 ------------------
@@ -852,6 +888,29 @@ BEGIN
   IF (NOT(array(SELECT json_array_elements_text((j_called_with_arguments)->(i_call_time-1))) = s_expected_arguments)) THEN
     PERFORM pgtest.fails(format(s_message, i_call_time, s_expected_arguments, s_actual_arguments));
   END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+-------------
+-- HELPERS --
+-------------
+CREATE OR REPLACE FUNCTION pgtest.remove_table_fk_constraints(s_schema_name VARCHAR, s_table_name VARCHAR)
+  RETURNS void AS
+$$
+DECLARE
+  s_constraint_name VARCHAR;
+BEGIN
+  FOR s_constraint_name IN (
+    SELECT constraint_name
+    FROM information_schema.table_constraints
+    WHERE constraint_type = 'FOREIGN KEY'
+      AND table_schema = s_schema_name 
+      AND table_name = s_table_name
+  ) LOOP
+    EXECUTE 'ALTER TABLE ' || s_schema_name || '.' || s_table_name || ' DROP CONSTRAINT ' || s_constraint_name;
+  END LOOP;
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
