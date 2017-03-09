@@ -85,8 +85,8 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_extension_does_not_exist(extension_name [, custom_error_message]);`
 * `pgtest.assert_column_type(schema_name, relation_name, column_name, expected_column_type [, custom_error_message]);`
 * `pgtest.assert_not_column_type(schema_name, relation_name, column_name, not_expected_column_type [, custom_error_message]);`
-* `pgtest.assert_table_has_fk(schema_name, table_name, constraint_name, [, custom_error_message]);`
-* `pgtest.assert_table_has_not_fk(schema_name, table_name, constraint_name, [, custom_error_message]);`
+* `pgtest.assert_table_has_fk(schema_name, table_name, constraint_name [, custom_error_message]);`
+* `pgtest.assert_table_has_not_fk(schema_name, table_name, constraint_name [, custom_error_message]);`
 
 `expected_value` and `real_value` must be same type (base type or array).
 
@@ -104,7 +104,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_called_with_arguments(mock_id, expected_arguments, call_time [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`). `call_time` tells against which function call is tested.
 
 ## Helpers
-* `pgtest.remove_table_fk_constraints(schema_name, table_name);`. Removes all foreign key constraints of given table.
+* `pgtest.remove_table_fk_constraints(schema_name, table_name)` - removes all foreign key constraints of given table.
 
 ## Hooks
 * `before()` - runs before every test that's in the same schema.
