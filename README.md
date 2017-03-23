@@ -121,7 +121,16 @@ SELECT * FROM pgtest.coverage(ARRAY['public']::VARCHAR[], ARRAY['tests']::VARCHA
 ## Data types
 You can all data types from:
 ```sql
-SELECT DISTINCT data_type FROM information_schema.parameters 
+SELECT DISTINCT (CASE
+  WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
+  WHEN p.data_type = 'USER-DEFINED' THEN p.udt_schema || '.' || p.udt_name
+  ELSE p.data_type::VARCHAR
+END) AS parameter_data_type
+FROM information_schema.parameters p
+LEFT JOIN information_schema.element_types et ON (
+ (p.specific_catalog, p.specific_schema, p.specific_name, 'ROUTINE', p.dtd_identifier)
+= (et.object_catalog, et.object_schema, et.object_name, et.object_type, et.collection_type_identifier)
+)
 ```
 
 In case of array, just add `[]` at the end (eg. `character varying[]`).
