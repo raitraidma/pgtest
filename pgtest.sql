@@ -391,14 +391,16 @@ $$
 DECLARE
   s_function_name VARCHAR;
   s_schema_name VARCHAR;
-  t_start_time TIMESTAMP;
-  t_end_time TIMESTAMP;
+  t_test_suite_start_time TIMESTAMP;
+  t_test_suite_end_time TIMESTAMP;
+  t_test_start_time TIMESTAMP;
+  t_test_end_time TIMESTAMP;
   s_test_result VARCHAR;
   i_test_count INT := 0;
   i_error_count INT := 0;
   s_failed_tests TEXT[];
 BEGIN
-  t_start_time := clock_timestamp();
+  t_test_suite_start_time := clock_timestamp();
 
   FOREACH s_schema_name IN ARRAY s_schema_names LOOP
     RAISE NOTICE 'Running tests in schema: %', s_schema_name;
@@ -406,8 +408,10 @@ BEGIN
     LOOP
       i_test_count := i_test_count + 1;
       RAISE NOTICE 'Running test: %.%', s_schema_name, s_function_name;
+      t_test_start_time := clock_timestamp();
       s_test_result := pgtest.f_run_test(s_schema_name, s_function_name);
-      RAISE NOTICE '%', s_test_result;
+      t_test_end_time := clock_timestamp();
+      RAISE NOTICE '(%) %', (t_test_end_time-t_test_start_time), s_test_result;
       IF (s_test_result <> 'OK') THEN
         i_error_count := i_error_count + 1;
         s_failed_tests := array_append(s_failed_tests, s_schema_name || '.' || s_function_name);
@@ -415,13 +419,13 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  t_end_time := clock_timestamp();
+  t_test_suite_end_time := clock_timestamp();
 
   IF (array_length(s_failed_tests, 1) > 0) THEN
     RAISE NOTICE E'Failed tests:\n%', array_to_string(s_failed_tests, E'\n');
   END IF;
 
-  RAISE NOTICE 'Executed % tests of which % failed in %', i_test_count, i_error_count, (t_end_time - t_start_time);
+  RAISE NOTICE 'Executed % tests of which % failed in %', i_test_count, i_error_count, (t_test_suite_end_time - t_test_suite_start_time);
   RAISE EXCEPTION 'PgTest ended.';
 EXCEPTION
   WHEN OTHERS THEN
