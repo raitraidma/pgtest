@@ -43,6 +43,26 @@ $$ LANGUAGE plpgsql
   SET search_path=test, pg_temp;
 ```
 
+Test, if function raises an error. Like `@Test(expected=Exception.class)` in JUnit:
+```sql
+CREATE OR REPLACE FUNCTION test.test_do_something()
+  RETURNS void AS
+$$
+DECLARE
+  b_raised_an_error BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    PERFORM myschema.do_something();
+  EXCEPTION
+    WHEN OTHERS THEN b_raised_an_error := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_raised_an_error, 'Function myschema.do_something() should raise an error when ...');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=test, pg_temp;
+```
+
 Run tests:
 ```sql
 SELECT pgtest.run_tests('test');
