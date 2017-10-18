@@ -93,6 +93,8 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.assert_rows(expected_result_query, actual_result_query [, custom_error_message])`
 * `pgtest.assert_table_exists(schema_name, table_name [, custom_error_message])`
 * `pgtest.assert_table_does_not_exist(schema_name, table_name [, custom_error_message])`
+* `pgtest.assert_temp_table_exists(table_name [, custom_error_message])`
+* `pgtest.assert_temp_table_does_not_exist(table_name [, custom_error_message])`
 * `pgtest.assert_view_exists(schema_name, view_name [, custom_error_message])`
 * `pgtest.assert_view_does_not_exist(schema_name, view_name [, custom_error_message])`
 * `pgtest.assert_mat_view_exists(schema_name, materialized_view_name [, custom_error_message])`

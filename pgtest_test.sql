@@ -574,6 +574,66 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_temp_table_exists_with_existing_temp_table()
+  RETURNS void AS
+$$
+BEGIN
+  CREATE TEMP TABLE test_temp_table();
+  PERFORM pgtest.assert_temp_table_exists('test_temp_table');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_temp_table_does_not_exist_with_non_existing_temp_table()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_temp_table_does_not_exist('test_temp_table');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_temp_table_exists_with_non_existing_temp_table()
+  RETURNS void AS
+$$
+DECLARE
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    PERFORM pgtest.assert_temp_table_exists('test_temp_table');
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'assert_temp_table_exists should throw exception, because temp table does not exist.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_asset_temp_table_does_not_exist_with_existing_temp_table()
+  RETURNS void AS
+$$
+DECLARE
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    CREATE TEMP TABLE test_temp_table();
+    PERFORM pgtest.assert_temp_table_does_not_exist('test_temp_table');
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'assert_temp_table_does_not_exist should throw exception, because temp table exists.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_asset_view_exists_with_existing_view()
   RETURNS void AS
 $$

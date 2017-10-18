@@ -163,7 +163,7 @@ $$
   SELECT EXISTS ( SELECT 1
                   FROM pg_class c
                   LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
-                  WHERE n.nspname = s_schema_name
+                  WHERE n.nspname LIKE s_schema_name
                   AND c.relname = s_table_name
                   AND c.relkind = s_table_type);
 $$ LANGUAGE sql
@@ -588,6 +588,32 @@ $$
 BEGIN
   IF (pgtest.f_relation_exists(s_schema_name, s_table_name, 'r')) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_temp_table_exists(s_table_name VARCHAR, s_message TEXT DEFAULT 'Temp table %1$s does not exist.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (NOT pgtest.f_relation_exists('pg_temp%', s_table_name, 'r')) THEN
+    PERFORM pgtest.fails(format(s_message, s_table_name));
+  END IF;
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest.assert_temp_table_does_not_exist(s_table_name VARCHAR, s_message TEXT DEFAULT 'Temp table %1$s exists.')
+  RETURNS void AS
+$$
+BEGIN
+  IF (pgtest.f_relation_exists('pg_temp%', s_table_name, 'r')) THEN
+    PERFORM pgtest.fails(format(s_message, s_table_name));
   END IF;
 END
 $$ LANGUAGE plpgsql
