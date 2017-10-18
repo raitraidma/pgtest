@@ -94,64 +94,71 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION pgtest.f_get_function_description(s_schema_name VARCHAR, s_function_name VARCHAR, s_function_argument_types VARCHAR[])
   RETURNS json AS
 $$
-  SELECT row_to_json(fp) FROM (
-    SELECT
-      f.routine_schema
-    , f.routine_name
-    , (CASE
-  WHEN f.routine_data_type <> 'record' THEN f.routine_data_type
-  ELSE 'TABLE (' || (array_to_string((array_agg(f.parameter_name || ' ' || f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'OUT')), ',')) || ')'
-    END) AS routine_data_type
-    , f.security_type
-    , coalesce(array_agg(f.parameter_mode) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_modes
-    , coalesce(array_agg(f.parameter_name) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_names
-    , coalesce(array_agg(f.parameter_data_type) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_data_types
-    , coalesce(array_agg(f.parameter_default) FILTER (WHERE f.parameter_mode = 'IN'), ARRAY[]::VARCHAR[]) AS parameter_defaults
-    FROM (
-      SELECT
-        r.specific_catalog
-      , r.specific_schema
-      , r.specific_name
-      , r.routine_schema
-      , r.routine_name
-      , (CASE
-          WHEN r.data_type = 'ARRAY' THEN ret.data_type::VARCHAR || '[]'
-          WHEN r.data_type = 'USER-DEFINED' THEN r.type_udt_schema || '.' || r.type_udt_name
-          ELSE r.data_type
-      END) AS routine_data_type
-      , r.security_type
-      , p.parameter_mode::VARCHAR
-      , p.parameter_name::VARCHAR
-      , (CASE
-          WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
-          WHEN p.data_type = 'USER-DEFINED' THEN p.udt_schema || '.' || p.udt_name
-          ELSE p.data_type::VARCHAR
-      END) AS parameter_data_type
-      , p.parameter_default::VARCHAR
-      FROM information_schema.routines r
-      LEFT JOIN information_schema.parameters p ON (r.specific_catalog = p.specific_catalog AND r.specific_schema = p.specific_schema AND r.specific_name = p.specific_name)
-      LEFT JOIN information_schema.element_types et ON (
-         (p.specific_catalog, p.specific_schema, p.specific_name, 'ROUTINE', p.dtd_identifier)
-       = (et.object_catalog, et.object_schema, et.object_name, et.object_type, et.collection_type_identifier)
-      )
-      LEFT JOIN information_schema.element_types ret ON (
-         (r.specific_catalog, r.specific_schema, r.specific_name, 'ROUTINE', r.dtd_identifier)
-       = (ret.object_catalog, ret.object_schema, ret.object_name, ret.object_type, ret.collection_type_identifier)
-      )
-      WHERE r.routine_schema = s_schema_name
-        AND r.routine_name = s_function_name
-        AND r.routine_type = 'FUNCTION'
-      ORDER BY p.ordinal_position ASC
-    ) f
-    GROUP BY
-      f.specific_catalog
-    , f.specific_schema
-    , f.specific_name
-    , f.routine_schema
-    , f.routine_name
-    , f.routine_data_type
-    , f.security_type
-  ) fp WHERE fp.parameter_data_types = s_function_argument_types;
+  WITH function_info AS (
+  SELECT
+    r.specific_catalog
+  , r.specific_schema
+  , r.specific_name
+  , r.routine_schema
+  , r.routine_name
+  , (CASE
+      WHEN r.data_type = 'ARRAY' THEN ret.data_type::VARCHAR || '[]'
+      WHEN r.data_type = 'USER-DEFINED' THEN r.type_udt_schema || '.' || r.type_udt_name
+      ELSE r.data_type
+  END) AS routine_data_type
+  , r.security_type
+  , p.parameter_mode::VARCHAR
+  , p.parameter_name::VARCHAR
+  , (CASE
+      WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
+      WHEN p.data_type = 'USER-DEFINED' THEN p.udt_schema || '.' || p.udt_name
+      ELSE p.data_type::VARCHAR
+  END) AS parameter_data_type
+  , p.parameter_default::VARCHAR
+  , p.ordinal_position
+  FROM information_schema.routines r
+  LEFT JOIN information_schema.parameters p ON (r.specific_catalog = p.specific_catalog AND r.specific_schema = p.specific_schema AND r.specific_name = p.specific_name)
+  LEFT JOIN information_schema.element_types et ON (
+     (p.specific_catalog, p.specific_schema, p.specific_name, 'ROUTINE', p.dtd_identifier)
+   = (et.object_catalog, et.object_schema, et.object_name, et.object_type, et.collection_type_identifier)
+  )
+  LEFT JOIN information_schema.element_types ret ON (
+     (r.specific_catalog, r.specific_schema, r.specific_name, 'ROUTINE', r.dtd_identifier)
+   = (ret.object_catalog, ret.object_schema, ret.object_name, ret.object_type, ret.collection_type_identifier)
+  )
+  WHERE r.routine_schema = s_schema_name
+    AND r.routine_name = s_function_name
+    AND r.routine_type = 'FUNCTION'
+), function_descriptions AS (
+  SELECT DISTINCT
+    fi.routine_schema
+  , fi.routine_name
+  , (CASE
+       WHEN fi.routine_data_type <> 'record' THEN fi.routine_data_type
+       ELSE 'TABLE (' ||
+         (SELECT array_to_string(array_agg(fi_pm.parameter_name || ' ' || fi_pm.parameter_data_type ORDER BY fi_pm.ordinal_position ASC), ',')
+          FROM function_info fi_pm
+          WHERE (fi.specific_catalog, fi.specific_schema, fi.specific_name, 'OUT') = (fi_pm.specific_catalog, fi_pm.specific_schema, fi_pm.specific_name, fi_pm.parameter_mode)
+         )
+       || ')'
+     END) AS routine_data_type
+  , fi.security_type
+  , (SELECT coalesce(array_agg(fi_pm.parameter_mode ORDER BY fi_pm.ordinal_position ASC), ARRAY[]::VARCHAR[]) FROM function_info fi_pm
+     WHERE (fi.specific_catalog, fi.specific_schema, fi.specific_name, 'IN') = (fi_pm.specific_catalog, fi_pm.specific_schema, fi_pm.specific_name, fi_pm.parameter_mode)
+    ) AS parameter_modes
+  , (SELECT coalesce(array_agg(fi_pm.parameter_name ORDER BY fi_pm.ordinal_position ASC), ARRAY[]::VARCHAR[]) FROM function_info fi_pm
+     WHERE (fi.specific_catalog, fi.specific_schema, fi.specific_name, 'IN') = (fi_pm.specific_catalog, fi_pm.specific_schema, fi_pm.specific_name, fi_pm.parameter_mode)
+    ) AS parameter_names
+  , (SELECT coalesce(array_agg(fi_pm.parameter_data_type ORDER BY fi_pm.ordinal_position ASC), ARRAY[]::VARCHAR[]) FROM function_info fi_pm
+     WHERE (fi.specific_catalog, fi.specific_schema, fi.specific_name, 'IN') = (fi_pm.specific_catalog, fi_pm.specific_schema, fi_pm.specific_name, fi_pm.parameter_mode)
+    ) AS parameter_data_types
+  , (SELECT coalesce(array_agg(fi_pm.parameter_default ORDER BY fi_pm.ordinal_position ASC), ARRAY[]::VARCHAR[]) FROM function_info fi_pm
+     WHERE (fi.specific_catalog, fi.specific_schema, fi.specific_name, 'IN') = (fi_pm.specific_catalog, fi_pm.specific_schema, fi_pm.specific_name, fi_pm.parameter_mode)
+    ) AS parameter_defaults
+  FROM function_info fi
+) SELECT row_to_json(fd)
+  FROM function_descriptions fd
+  WHERE fd.parameter_data_types = s_function_argument_types;
 $$ LANGUAGE sql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;

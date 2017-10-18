@@ -141,7 +141,7 @@ SELECT * FROM pgtest.coverage(ARRAY['public']::VARCHAR[], ARRAY['tests']::VARCHA
 ```
 
 ## Data types
-You can all data types from:
+You can retrieve all data types from:
 ```sql
 SELECT DISTINCT (CASE
   WHEN p.data_type = 'ARRAY' THEN et.data_type::VARCHAR || '[]'
