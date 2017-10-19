@@ -431,6 +431,47 @@ $$ LANGUAGE plpgsql
   SET search_path=pgtest_test, pg_temp;
 
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_assert_call_arguments_without_order()
+  RETURNS void AS
+$$
+DECLARE
+  s_mock_id VARCHAR;
+BEGIN
+  PERFORM pgtest_test.f_test_function('a');
+  s_mock_id := pgtest.mock('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[], 'pgtest_test', 'f_test_function_mock');
+  PERFORM pgtest_test.f_test_function('b');
+  PERFORM pgtest_test.f_test_function('c');
+  PERFORM pgtest_test.f_test_function('d');
+  PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['d', '1', 'def']);
+  PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['b', '1', 'def']);
+  PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['c', '1', 'def']);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_assert_wrong_call_arguments_without_order()
+  RETURNS void AS
+$$
+DECLARE
+  s_mock_id VARCHAR;
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    s_mock_id := pgtest.mock('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[], 'pgtest_test', 'f_test_function_mock');
+    PERFORM pgtest_test.f_test_function('a');
+    PERFORM pgtest.assert_called_with_arguments(s_mock_id, ARRAY['b']);
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'assert_called_with_arguments without order should throw exception, because arguments do not match.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
 CREATE OR REPLACE FUNCTION pgtest_test.test_mock_function_without_parameters_returns_table()
   RETURNS void AS
 $$
@@ -545,6 +586,49 @@ BEGIN
     WHEN SQLSTATE '40005' THEN b_pass := TRUE;
   END;
   PERFORM pgtest.assert_true(b_pass, 'assert_called_with_arguments should throw exception, because arguments do not match.');
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_and_assert_call_arguments_without_order()
+  RETURNS void AS
+$$
+DECLARE
+  s_spy_id VARCHAR;
+BEGIN
+  PERFORM pgtest_test.f_test_function('a');
+  s_spy_id := pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+  PERFORM pgtest_test.f_test_function('b');
+  PERFORM pgtest_test.f_test_function('c');
+  PERFORM pgtest_test.f_test_function('d');
+  PERFORM pgtest_test.f_test_function('e');
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['e', '1', 'def']);
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['b', '1', 'def']);
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['c', '1', 'def']);
+  PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['d', '1', 'def']);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_and_assert_wrong_call_arguments_without_order()
+  RETURNS void AS
+$$
+DECLARE
+  s_spy_id VARCHAR;
+  b_pass BOOLEAN := FALSE;
+BEGIN
+  BEGIN
+    s_spy_id := pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+    PERFORM pgtest_test.f_test_function('a');
+    PERFORM pgtest.assert_called_with_arguments(s_spy_id, ARRAY['b']);
+  EXCEPTION
+    WHEN SQLSTATE '40005' THEN b_pass := TRUE;
+  END;
+  PERFORM pgtest.assert_true(b_pass, 'assert_called_with_arguments without order should throw exception, because arguments do not match.');
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER

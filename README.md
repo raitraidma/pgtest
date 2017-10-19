@@ -123,7 +123,8 @@ When using `psql` then you can hide `CONTEXT` info by using:
 * `pgtest.spy(original_function_schema_name, original_function_name, function_argument_types)`. All matching parameters and return value are the same as `pgtest.mock` has. Only difference is that original function's implementation is not changed.
 * `pgtest.assert_called(mock_id [, expected_times_called [, custom_error_message]])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_times_called` tells how many times we expect the mock/spy function to be called (by default 1).
 * `pgtest.assert_called_at_least_once(mock_id [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. Expect that mock/spy function was called at least once.
-* `pgtest.assert_called_with_arguments(mock_id, expected_arguments, call_time [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`). `call_time` tells against which function call is tested.
+* `pgtest.assert_called_with_arguments(mock_id, expected_arguments, call_time [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`). `call_time` tells against which function call is tested (specifies the order of function calls).
+* `pgtest.assert_called_with_arguments(mock_id, expected_arguments [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`).
 
 ## Helpers
 * `pgtest.remove_table_fk_constraints(schema_name, table_name)` - removes all foreign key constraints of given table.

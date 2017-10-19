@@ -930,6 +930,33 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
+
+CREATE OR REPLACE FUNCTION pgtest.assert_called_with_arguments(s_mock_id VARCHAR, s_expected_arguments TEXT[], s_message TEXT DEFAULT 'Function expected to be called with arguments %1$s.')
+  RETURNS void AS
+$$
+DECLARE
+  j_called_with_arguments JSON;
+  s_actual_arguments TEXT[];
+  j_argument_list JSON;
+BEGIN
+  SELECT called_with_arguments
+  INTO j_called_with_arguments
+  FROM temp_pgtest_mock
+  WHERE mock_id = s_mock_id;
+
+  FOR j_argument_list IN SELECT * FROM json_array_elements(j_called_with_arguments)
+  LOOP
+    IF (array(SELECT json_array_elements_text(j_argument_list)) = s_expected_arguments) THEN
+      RETURN;
+    END IF;
+  END LOOP;
+  
+  PERFORM pgtest.fails(format(s_message, s_expected_arguments));
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
+
 -------------
 -- HELPERS --
 -------------
