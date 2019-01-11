@@ -72,7 +72,7 @@ BEGIN
   IF (pgtest.f_function_exists(s_schema_name, 'after', ARRAY[]::VARCHAR[])) THEN
     EXECUTE 'SELECT ' || s_schema_name || '.after();';
   END IF;
-  
+
   IF (b_rollback) THEN
     RAISE EXCEPTION 'OK' USING ERRCODE = '40004';
   END IF;
@@ -282,7 +282,7 @@ BEGIN
                     s_arguments JSON;
                   BEGIN
                     s_arguments := to_json(ARRAY[%9$s]::TEXT[]);
-                    
+
                     UPDATE temp_pgtest_mock
                     SET times_called = times_called + 1
                       , called_with_arguments = array_to_json(array_append(array(SELECT * FROM json_array_elements(called_with_arguments)), s_arguments))
@@ -813,7 +813,7 @@ BEGIN
   IF (NOT EXISTS (SELECT 1
     FROM information_schema.table_constraints
     WHERE constraint_type = 'FOREIGN KEY'
-      AND table_schema = s_schema_name 
+      AND table_schema = s_schema_name
       AND table_name = s_table_name
       AND constraint_name = s_constraint_name)) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_constraint_name));
@@ -831,7 +831,7 @@ BEGIN
   IF (EXISTS (SELECT 1
     FROM information_schema.table_constraints
     WHERE constraint_type = 'FOREIGN KEY'
-      AND table_schema = s_schema_name 
+      AND table_schema = s_schema_name
       AND table_name = s_table_name
       AND constraint_name = s_constraint_name)) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_constraint_name));
@@ -950,7 +950,7 @@ BEGIN
       RETURN;
     END IF;
   END LOOP;
-  
+
   PERFORM pgtest.fails(format(s_message, s_expected_arguments));
 END
 $$ LANGUAGE plpgsql
@@ -970,7 +970,7 @@ BEGIN
     SELECT constraint_name
     FROM information_schema.table_constraints
     WHERE constraint_type = 'FOREIGN KEY'
-      AND table_schema = s_schema_name 
+      AND table_schema = s_schema_name
       AND table_name = s_table_name
   ) LOOP
     EXECUTE 'ALTER TABLE ' || s_schema_name || '.' || s_table_name || ' DROP CONSTRAINT ' || s_constraint_name;
