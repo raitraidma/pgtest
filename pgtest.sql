@@ -336,10 +336,10 @@ BEGIN
 
   INSERT INTO temp_pgtest_mock(mock_id) VALUES (s_mock_id);
 
-  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
+  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_mock_id || ';';
 
   IF (s_type = 'SPY') THEN
-    PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_original_function_schema_name, s_original_function_name || '_' || s_mock_id);
+    PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_original_function_schema_name, s_mock_id);
   ELSIF (s_type = 'MOCK') THEN
     PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_mock_function_schema_name, s_mock_function_name);
   ELSE
