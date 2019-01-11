@@ -4,9 +4,6 @@ CREATE SCHEMA IF NOT EXISTS pgtest;
 ---------------
 -- EXECUTION --
 ---------------
-DROP SEQUENCE IF EXISTS pgtest.unique_id;
-CREATE SEQUENCE pgtest.unique_id CYCLE;
-
 
 CREATE OR REPLACE FUNCTION pgtest.f_get_test_functions_in_schema(s_schema_name VARCHAR)
   RETURNS TABLE (
@@ -309,15 +306,24 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
+CREATE OR REPLACE FUNCTION pgtest.mock_function_id(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[]) RETURNS varchar AS $$
+BEGIN
+  RETURN 'pgtest_mock_' || md5(s_original_function_schema_name || s_original_function_name || array_to_string(s_function_argument_types, ''));
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
 
 CREATE OR REPLACE FUNCTION pgtest.f_mock_or_spy(s_type VARCHAR, s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[], s_mock_function_schema_name VARCHAR DEFAULT NULL, s_mock_function_name VARCHAR DEFAULT NULL)
   RETURNS varchar AS
 $$
 DECLARE
-  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
+  s_mock_id VARCHAR;
   j_original_function_description JSON;
 BEGIN
+  s_mock_id := pgtest.mock_function_id(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
   j_original_function_description := pgtest.f_get_function_description(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
+
   IF (j_original_function_description IS NULL) THEN
     RAISE EXCEPTION 'Could not find function to spy: %.%(%)', s_original_function_schema_name, s_original_function_name, array_to_string(s_function_argument_types, ',');
   END IF;

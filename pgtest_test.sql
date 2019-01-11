@@ -1003,7 +1003,7 @@ CREATE OR REPLACE FUNCTION pgtest_test.test_coverage()
 $$
 BEGIN
   CREATE SCHEMA pgtest_test_functions;
-  
+
   CREATE OR REPLACE FUNCTION pgtest_test_functions.covered()
     RETURNS void AS
   $TEST$
@@ -1012,7 +1012,7 @@ BEGIN
   $TEST$ LANGUAGE plpgsql
     SECURITY DEFINER
     SET search_path=pgtest_test_functions, pg_temp;
-  
+
   CREATE OR REPLACE FUNCTION pgtest_test_functions.not_covered()
     RETURNS void AS
   $TEST$
@@ -1075,7 +1075,7 @@ BEGIN
   PERFORM pgtest.assert_table_has_fk('pgtest_test_tables', 'child', 'fk_child_parent');
   PERFORM pgtest.remove_table_fk_constraints('pgtest_test_tables', 'child');
   PERFORM pgtest.assert_table_has_not_fk('pgtest_test_tables', 'child', 'fk_child_parent');
-  
+
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
