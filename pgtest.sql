@@ -306,9 +306,9 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
-CREATE OR REPLACE FUNCTION pgtest.mock_function_id(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[]) RETURNS varchar AS $$
+CREATE OR REPLACE FUNCTION pgtest.get_mock_id(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[]) RETURNS varchar AS $$
 BEGIN
-  RETURN 'pgtest_mock_' || md5(s_original_function_schema_name || s_original_function_name || array_to_string(s_function_argument_types, ''));
+  RETURN 'pgtest_mock_' || md5(s_original_function_schema_name || '.' || s_original_function_name || '.' || array_to_string(s_function_argument_types, ','));
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
@@ -321,7 +321,7 @@ DECLARE
   s_mock_id VARCHAR;
   j_original_function_description JSON;
 BEGIN
-  s_mock_id := pgtest.mock_function_id(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
+  s_mock_id := pgtest.get_mock_id(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
   j_original_function_description := pgtest.f_get_function_description(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
 
   IF (j_original_function_description IS NULL) THEN

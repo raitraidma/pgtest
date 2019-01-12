@@ -121,7 +121,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 ## Mock and spy
 * `pgtest.mock(original_function_schema_name, original_function_name, function_argument_types, mock_function_schema_name, mock_function_name)`. All parameters but `function_argument_types` are `VARCHAR` type. `function_argument_types` is array of `VARCHAR`. Values in `function_argument_types` must be SQL names of a data types (must match with values in column `data_type` in table `information_schema.parameters`). This function returns `mock_id` (`VARCHAR`) that can be used to assert mock function calls. Original function's implementation is changed with mock function's implementation.
 * `pgtest.spy(original_function_schema_name, original_function_name, function_argument_types)`. All matching parameters and return value are the same as `pgtest.mock` has. Only difference is that original function's implementation is not changed.
-* `pgtest.mock_function_id(original_function_schema_name, original_function_name, function_argument_types)`. Returns `mock_id` for functions. `mock_id` is also a value returned by `pgtest.mock` or `pgtest.spy`.
+* `pgtest.get_mock_id(original_function_schema_name, original_function_name, function_argument_types)`. Returns `mock_id` for functions. `mock_id` is also a value returned by `pgtest.mock` or `pgtest.spy`.
 * `pgtest.assert_called(mock_id [, expected_times_called [, custom_error_message]])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_times_called` tells how many times we expect the mock/spy function to be called (by default 1).
 * `pgtest.assert_called_at_least_once(mock_id [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. Expect that mock/spy function was called at least once.
 * `pgtest.assert_called_with_arguments(mock_id, expected_arguments, call_time [, custom_error_message])` - `mock_id` is value returned by `pgtest.mock` or `pgtest.spy`. `expected_arguments` tells what are the expected arguments (e.g `ARRAY['a', '1']`). `call_time` tells against which function call is tested (specifies the order of function calls).
@@ -131,7 +131,7 @@ When using `psql` then you can hide `CONTEXT` info by using:
 -- Example:
 select pgtest.spy('app_public', 'myfunction', ARRAY['app_public.users']);
 -- do stuff
-select pgtest.assert_called(pgtest.mock_function_id('app_public', 'myfunction', ARRAY['app_public.users']), 1);
+select pgtest.assert_called(pgtest.get_mock_id('app_public', 'myfunction', ARRAY['app_public.users']), 1);
 ```
 
 ## Helpers
