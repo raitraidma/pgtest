@@ -4,9 +4,6 @@ CREATE SCHEMA IF NOT EXISTS pgtest;
 ---------------
 -- EXECUTION --
 ---------------
-DROP SEQUENCE IF EXISTS pgtest.unique_id;
-CREATE SEQUENCE pgtest.unique_id CYCLE;
-
 
 CREATE OR REPLACE FUNCTION pgtest.f_get_test_functions_in_schema(s_schema_name VARCHAR)
   RETURNS TABLE (
@@ -72,7 +69,7 @@ BEGIN
   IF (pgtest.f_function_exists(s_schema_name, 'after', ARRAY[]::VARCHAR[])) THEN
     EXECUTE 'SELECT ' || s_schema_name || '.after();';
   END IF;
-  
+
   IF (b_rollback) THEN
     RAISE EXCEPTION 'OK' USING ERRCODE = '40004';
   END IF;
@@ -282,7 +279,7 @@ BEGIN
                     s_arguments JSON;
                   BEGIN
                     s_arguments := to_json(ARRAY[%9$s]::TEXT[]);
-                    
+
                     UPDATE temp_pgtest_mock
                     SET times_called = times_called + 1
                       , called_with_arguments = array_to_json(array_append(array(SELECT * FROM json_array_elements(called_with_arguments)), s_arguments))
@@ -309,15 +306,24 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest, pg_temp;
 
+CREATE OR REPLACE FUNCTION pgtest.get_mock_id(s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[]) RETURNS varchar AS $$
+BEGIN
+  RETURN 'pgtest_mock_' || md5(s_original_function_schema_name || '.' || s_original_function_name || '.' || array_to_string(s_function_argument_types, ','));
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest, pg_temp;
 
 CREATE OR REPLACE FUNCTION pgtest.f_mock_or_spy(s_type VARCHAR, s_original_function_schema_name VARCHAR, s_original_function_name VARCHAR, s_function_argument_types VARCHAR[], s_mock_function_schema_name VARCHAR DEFAULT NULL, s_mock_function_name VARCHAR DEFAULT NULL)
   RETURNS varchar AS
 $$
 DECLARE
-  s_mock_id VARCHAR := 'pgtest_mock_' || md5(random()::text) || '_' || nextval('pgtest.unique_id');
+  s_mock_id VARCHAR;
   j_original_function_description JSON;
 BEGIN
+  s_mock_id := pgtest.get_mock_id(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
   j_original_function_description := pgtest.f_get_function_description(s_original_function_schema_name, s_original_function_name, s_function_argument_types);
+
   IF (j_original_function_description IS NULL) THEN
     RAISE EXCEPTION 'Could not find function to spy: %.%(%)', s_original_function_schema_name, s_original_function_name, array_to_string(s_function_argument_types, ',');
   END IF;
@@ -330,10 +336,10 @@ BEGIN
 
   INSERT INTO temp_pgtest_mock(mock_id) VALUES (s_mock_id);
 
-  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_original_function_name || '_' || s_mock_id || ';';
+  EXECUTE 'ALTER FUNCTION ' || s_original_function_schema_name || '.' || s_original_function_name || '(' || array_to_string(s_function_argument_types, ',') || ') RENAME TO ' || s_mock_id || ';';
 
   IF (s_type = 'SPY') THEN
-    PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_original_function_schema_name, s_original_function_name || '_' || s_mock_id);
+    PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_original_function_schema_name, s_mock_id);
   ELSIF (s_type = 'MOCK') THEN
     PERFORM pgtest.f_create_mock_function(s_mock_id, j_original_function_description, s_mock_function_schema_name, s_mock_function_name);
   ELSE
@@ -813,7 +819,7 @@ BEGIN
   IF (NOT EXISTS (SELECT 1
     FROM information_schema.table_constraints
     WHERE constraint_type = 'FOREIGN KEY'
-      AND table_schema = s_schema_name 
+      AND table_schema = s_schema_name
       AND table_name = s_table_name
       AND constraint_name = s_constraint_name)) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_constraint_name));
@@ -831,7 +837,7 @@ BEGIN
   IF (EXISTS (SELECT 1
     FROM information_schema.table_constraints
     WHERE constraint_type = 'FOREIGN KEY'
-      AND table_schema = s_schema_name 
+      AND table_schema = s_schema_name
       AND table_name = s_table_name
       AND constraint_name = s_constraint_name)) THEN
     PERFORM pgtest.fails(format(s_message, s_schema_name, s_table_name, s_constraint_name));
@@ -950,7 +956,7 @@ BEGIN
       RETURN;
     END IF;
   END LOOP;
-  
+
   PERFORM pgtest.fails(format(s_message, s_expected_arguments));
 END
 $$ LANGUAGE plpgsql
@@ -970,7 +976,7 @@ BEGIN
     SELECT constraint_name
     FROM information_schema.table_constraints
     WHERE constraint_type = 'FOREIGN KEY'
-      AND table_schema = s_schema_name 
+      AND table_schema = s_schema_name
       AND table_name = s_table_name
   ) LOOP
     EXECUTE 'ALTER TABLE ' || s_schema_name || '.' || s_table_name || ' DROP CONSTRAINT ' || s_constraint_name;
