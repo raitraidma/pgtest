@@ -369,6 +369,36 @@ $$ LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path=pgtest_test, pg_temp;
 
+CREATE OR REPLACE FUNCTION pgtest_test.test_mock_return_same_mock_id_as_get_mock_id_function()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.mock('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text'], 'pgtest_test', 'f_test_function_mock');
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_false(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_called(pgtest.get_mock_id('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']), 3);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+CREATE OR REPLACE FUNCTION pgtest_test.test_spy_return_same_mock_id_as_get_mock_id_function()
+  RETURNS void AS
+$$
+BEGIN
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.spy('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']::VARCHAR[]);
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_true(pgtest_test.f_test_function('a'));
+  PERFORM pgtest.assert_called(pgtest.get_mock_id('pgtest_test', 'f_test_function', ARRAY['character varying', 'integer', 'text']), 4);
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
 
 CREATE OR REPLACE FUNCTION pgtest_test.test_mock_and_assert_called_at_least_once()
   RETURNS void AS
