@@ -1,6 +1,28 @@
 DROP SCHEMA IF EXISTS pgtest_test CASCADE;
 CREATE SCHEMA pgtest_test;
 
+DROP SCHEMA IF EXISTS a CASCADE;
+CREATE SCHEMA a;
+
+CREATE OR REPLACE FUNCTION a.bb()
+  RETURNS boolean AS
+$$
+  RETURN true
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=a, pg_temp;
+
+DROP SCHEMA IF EXISTS ab CASCADE;
+CREATE SCHEMA ab;
+
+CREATE OR REPLACE FUNCTION ab.b()
+  RETURNS boolean AS
+$$
+  RETURN true
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path=ab, pg_temp;
+
 CREATE OR REPLACE FUNCTION pgtest_test.f_test_function(s_input VARCHAR, i_default INT DEFAULT 1, s_default TEXT DEFAULT 'def')
   RETURNS boolean AS
 $$
@@ -1106,6 +1128,24 @@ BEGIN
   PERFORM pgtest.remove_table_fk_constraints('pgtest_test_tables', 'child');
   PERFORM pgtest.assert_table_has_not_fk('pgtest_test_tables', 'child', 'fk_child_parent');
 
+END
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path=pgtest_test, pg_temp;
+
+/*
+Check that it is not possible to have a scenario where schema named A with a function BB and schema AB with a function B end up with same mock_id.
+*/
+CREATE OR REPLACE FUNCTION pgtest_test.test_get_mock_id_generates_differend_mock_ids()
+  RETURNS void AS
+$$
+DECLARE
+  s_mock_id1 VARCHAR;
+  s_mock_id2 VARCHAR;
+BEGIN
+  s_mock_id1 := pgtest.get_mock_id('a', 'bb', '{}');
+  s_mock_id2 := pgtest.get_mock_id('ab', 'b', '{}');
+  PERFORM pgtest.assert_not_equals(s_mock_id1, s_mock_id2);
 END
 $$ LANGUAGE plpgsql
   SECURITY DEFINER
